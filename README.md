@@ -16,11 +16,41 @@ $ git remote add upstream https://github.com/german1608/proy1orga.git
 ```
 
 ## Cuando comienza el día
+```bash
+git checkout master        # Cambiamos al master
+git fetch upstream         # Bajamos los cambios del repo principal
+git rebase upstream/master # Aplicamos los cambios del master del repo principal
+git checkout tu-rama       # Cambias a tu rama donde estas trabajando
+git rebase master          # Aplicas los cambios que se aplicaron en el master principal sobre tu rama
+```
 
-git checkout master
-git fetch upstream
-git rebase upstream/master
-git checkout tu-rama
-git rebase master
+## Mientras trabajas
 
+Es muy importante que **siempre escribas tu codigo en un branch aparte al master**.
+Esto es para que nuestro master este bien limpio y ademas si cometes un error
+pues no dañamos todo el proyecto.
 
+Cuando empiezas a escribir codigo, crea una branch para que escribas codigo ahi:
+```bash
+git branch <nombre-de-branch>
+git checkout <nombre-de-branch>
+```
+
+```bash
+git add file-name
+git commit -m 'Mensaje del commit'
+```
+
+## Subir el trabajo realizado al remoto
+
+Antes de subir cambios, ejecuta lo de la parte **Cuando comienza el dia**
+Cuando decides que tu codigo esta listo para que se monte en el remoto, ejecutas
+```bash
+$ git push -u origin <tu-rama>
+```
+y luego ejecutas un pull request en la interfaz de github. Vas a tu fork en github
+y le das a pull request.
+
+Es muy importante que para evitarnos dolores de cabeza, se revise bien que hace
+nuestro codigo, es decir, analizar si el codigo no introduce bugs, si hace lo que
+debe, etc.
