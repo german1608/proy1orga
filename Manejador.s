@@ -10,7 +10,9 @@ main:
 	jal	init
 	li	$v0, 10
 	syscall
-# Descripcl ion:inicializa el manejador de memoria.
+
+# init(IN size:entero; OUT code:entero)
+# Descripcion:inicializa el manejador de memoria.
 # Argumentos:
 #	$a0: Numero de bytes a ser administrados.
 # Retorno:
@@ -51,3 +53,43 @@ init:
 	sw	$t0, ($v0)
 	
 	jr	$ra
+	
+# malloc(IN size:entero; OUT address: entero)
+# Parametros: 
+#	$a0 cantidad de bytes a ser asignados
+		
+# Retorno:
+#	-1 si no hay espacio disponible
+# Uso de registros:
+	
+	
+	.text
+	.globl malloc
+	
+malloc:
+	lw 	$t0, sizeAvail
+	blt	$a0, $t0, m_search	#verificar si hay espacio disponible
+	beq	$a0, $t0, m_search
+	li	$v0, -1	
+	jr	$ra
+	
+m_search:
+	lw	$t0, cabezaManej
+	bnez 	$t0, 			#verificar si apunta a 0
+	
+	move	$t1, $a0		#espacio alocado
+	li	$a0, 12
+	li	$v0, 9
+	syscall
+	sw	$v0, cabezaManej	# cabeza de la lista apunta al nuevo nodo
+	
+	# crear el primer nodo de TAD Manejador
+	sw	$v0, 0($v0)
+	sw	$t1, 4($v0)
+	sw	$0,  8($v0)
+	
+	
+	
+	
+	
+
