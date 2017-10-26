@@ -61,56 +61,77 @@ init:
 # Retorno:
 #	-1 si no hay espacio disponible
 # Uso de registros:
-	
-	
+#	$t0: direccion de nodo de inicio
+#	$t1: direccion de nodo siguiente.
+#	$t2: guarda la cantidad de espacios intermedios libres.
+#	$t3: registro auxiliar.
 	.text
 	.globl malloc
 	
 malloc:
 	lw 	$t0, sizeAvail
-	ble	$a0, $t0, m_search	#verificar si hay espacio disponible
-	li	$v0, -1	
+	ble	$a0, $t0, m_search	# if sizeAvail < $a0:
+	li	$v0, -1			#	return -1
 	jr	$ra
 	
 m_search:
-	la	$t0, cabezaManej
-	b 	loop
-	move	$t1, $a0		#espacio alocado
-	li	$a0, 12
-	li	$v0, 9
-	syscall
-	sw	$v0, cabezaManej	# cabeza de la lista apunta al nuevo nodo
+	la	$t0, cabezaManej	# a = M.head
+	la	$t1, 8($t0)		# b = a.next
+	lw	$t3, 4($t0)
+	bne	$t3, -1, m_not_head	# if a.size == -1:
+	lw	$t3, ($t1)
+	sub	$t3, $t3, $t0
+	blt	$t3, $a0, m_not_head	# if hayEspacioEnCabeza:
+	sw	$a0, 4($t0)		# cabeza.size = $a0
+	move	$v0, ($t0)		# le devolvemos la direccion.
+	jr	$ra
 	
-	# crear el primer nodo de TAD Manejador
-	sw	$v0, 0($v0)
-	sw	$t1, 4($v0)
-	sw	$0,  8($v0)
+m_not_head:
+	li	$t2, 0
+m_loop:	# iteramos sobre los nodos del tad manejador en busca de huecos o null
+	beqz	$t1, end_m_loop
+	lw	$t3, ($t0)
+	lw	$t4, 4($t0)
+	add 	$t3, $t4, $t3 		# buscamos hueco
+	lw	$t4, ($t1)
+	subu	$t3, $t4, $t3
 	
-loop:	#iteramos sobre los nodos del tad manejador en busca de huecos o null
-	lw		$t1, 8($t0)
-	lw		$t2, ($t0)
-	lw		$t3, 4($t0)
-	beqz	$t1, endloop1
-	add 	$t3, $t2, $t3 		# buscamos hueco
-	subu	$t0, $t1, $t3
-	ble		$a0, $t0, endloop2 	#si encontramos uno
-	move	$t0, $t1			#siguiente nodo
-	b 		loop
-
-endloop1:	#crea nodo al final de la lista
-	lw		$t1, $a0			#salvamos el tamano que pidio el usuario
+	bgt	$a0, $t3, m_next_iter	# if hayEspacioDisponibleEnre(a,b):
+	add	$t3, $t0, 12		# $t3 = nodo_intermedio(a,b)
+	lw	$t4, ($t0)		# $t4 = $t0.dirManej
+	lw	$v0, 4($t0)		# $v0 = $t0.size
+	add	$v0, $t5, $t4		# $v0 = dir_espacio_a_retornar
+	sw	$v0, ($t3)		# $t3.dirManej = $v0
+	sw	$a0, 4($t3)		# $$3.size = tamano_pedido
+	sw	$t1, 8($t3)		# $t3.next = $t1
+	sw	$t3, 8($t0)		# $t1.next = $t3
+	jr $ra				# Retornamos una direccion libre intermedia
+m_next_iter:	
+	add	$t2, $t2, $t3		# $t2 += $t3
+	move	$t0, $t1		# $t0 = $t1
+	lw	$t3, 8($t1)
+	move	$t1, $t3		# $t1 = $t1.next
+	b m_loop
+end_m_loop:
+	lw	$t3, sizeAvail
+	sub	$t2, $t3, $t2
+	blt	$t2, $a0, m_no_memory
+	move	$t1, $a0			#salvamos el tamano que pidio el usuario
 	li 		$a0, 12
 	li 		$v0, 9
 	syscall
-	sw		$v0, 0($t0)
-	sw		$t1, 4($v0)
-	sw		$0,	 8($v0)
+	lw	$t3, ($t0)
+	lw	$t2, 4($t0)
+	add	$t2, $t2, $t3
+	sw	$t2, 0($v0)
+	sw	$t1, 4($v0)
+	sw	$0,  8($v0)
+	move	$v0, $t2
+	jr	$ra
 	
-endloop2:	#crea nodo en el hueco
-	move $t1, 
-
-
-	
+m_no_memory:
+	li	$v0, -1
+	jr	$ra
 	
 	
 
