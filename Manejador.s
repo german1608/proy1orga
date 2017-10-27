@@ -35,6 +35,7 @@ cabezaManej:
 	.globl	init
 init:
 	li	$v0, 9			# Pedimos espacio para el usuario
+
 	syscall
 	la	$t0, sizeInit	# Guardamos el tamano que nos pidio el usuario
 	sw	$a0, ($t0)
