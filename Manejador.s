@@ -1,4 +1,4 @@
-	# Lista.s
+	# Manejador.s
 # Autores:
 #   Yuni Quintero
 #   German Robayo
@@ -264,6 +264,7 @@ free_loop:
 	beqz	$t0,  free_error		#while(a!= null)
 									#si apunta a 0 no encontro la direccion
 	lw	$t1, ($t0)
+	
 	beq 	$t1, $a0, free_node		#if(a.di == address)
 	move	$t2, $t0				#prev = a
 	lw	$t0, 8($t0)				#a = a.next
@@ -271,14 +272,15 @@ free_loop:
 
 free_node:
 	lw	$t1, dirManej
+	
 	beq 	$a0, $t1, free_cabeza	#if(a == cabezaManej)
-	lw 		$t3, 8($t0) 			#$t3 = a.next
-	sw 		$t3, 8($t2)
+	lw 	$t3, 8($t0) 			#$t3 = a.next
+	sw 	$t3, 8($t2)
 	lw 	$t2, 4($t0) 				#$t2 = sizeliberado
 	lw 	$t3, sizeAvail
 	add	$t2, $t3, $t2, 
 	sw 	$t2, sizeAvail				#prev.next = a.next
-	b 		free_end_loop
+	b	free_end_loop
 
 free_error:
 	li 		$v0, -1					#return -1
@@ -289,7 +291,7 @@ free_cabeza:
 	lw 	$t3, sizeAvail
 	add	$t2, $t3, $t2, 
 	sw 	$t2, sizeAvail
-	sw		$0, 4($t0)				#para identificar que la cab esta libre
+	sw	$0, 4($t0)				#para identificar que la cab esta libre
 
 free_end_loop:
 	move	$v0, $0					#return 0
@@ -300,3 +302,14 @@ free_end:							#epilog
 	add 	$sp, $sp, 4
 	jr	$ra
 
+#
+###############################################################################
+# reallococ: (IN direc; dir, IN size: OUT address: entero)
+# Descripcion:
+#	Funcion que toma una direccion previamente retornada por malloc o reallococ
+#	y la relocaliza con el fin de poder aumentar o disminuir ese segmento de memoria.
+#	Los datos que estan en ese segmento migraran al proximo segmento.
+# Parametros:
+#	$a0 direccion en memoria previamente retornada por malloc o reallococ
+#	$a1 nuevo tamano que tendra ese esgmento de memoria.
+# Uso de registros:
