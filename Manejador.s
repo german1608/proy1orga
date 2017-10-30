@@ -60,6 +60,8 @@ init:
 	addiu	$sp, $sp, 4
 	jr	$ra
 	
+#
+###############################################################################
 # malloc(IN size:entero; OUT address: entero)
 # Parametros: 
 #	$a0 cantidad de bytes a ser asignados
@@ -73,71 +75,126 @@ init:
 #	$t3: registro auxiliar.
 	.text
 	.globl malloc
-	
+
 malloc:
-	lw 	$t0, sizeAvail
-	ble	$a0, $t0, m_search	# if sizeAvail < $a0:
-	li	$v0, -1			#	return -1
-	jr	$ra
+	# Compromiso de programador
+	addiu	$sp, $sp, -4
+	sw	$fp, 4($sp)
+	addiu	$fp, $sp, 4
 	
+	lw	$t1, sizeInit
+
+	# En caso de que el parametro no este en rangos validos
+	ble	$a0, $t1 m_valid_number
+	bgtz	$a0, m_valid_number
+	li	$v0, -2
+	lw	$fp, 4($sp)
+	addiu	$sp, $sp, 4
+	jr	$ra
+m_valid_number:
+	lw 	$t0, sizeAvail
+	
+	# el siguiente branch es el caso en el que TODA la memoria esta disponible
+	bne	$t0, $t1, m_head_not_init
+	lw	$t1, cabezaManej
+	sw	$a0, 4($t1)
+	lw	$v0, ($t1)
+	subu	$t0, $t0, $a0
+	sw	$t0, sizeAvail		# Actualizamos el espacio restante
+	lw	$fp, 4($sp)
+	addiu	$sp, $sp, 4
+	jr	$ra
+
+m_head_not_init:
+	ble	$a0, $t0, m_search	# if sizeAvail < $a0:
+	b m_no_memory
+
 m_search:
-	la	$t0, cabezaManej	# a = M.head
-	la	$t1, 8($t0)		# b = a.next
-	lw	$t3, 4($t0)
-	bne	$t3, -1, m_not_head	# if a.size == -1:
-	lw	$t3, ($t1)
-	sub	$t3, $t3, $t0
+	# Ahora, llegar aqui no garantiza que hayan bloques de memoria continuos con $a0 bytes.
+	lw	$t0, cabezaManej	# $t0 = M.head
+	lw	$t1, 8($t0)		# $t1 = a.next
+	lw	$t3, 4($t0)		# $t3 = a.size
+	bne	$t3, -1, m_not_head	# if a.size == -1: Esto ocurre cuando el segmento de memoria que empieza en (cabezaManej)
+					#		fue anteriormente liberado.
+	lw	$t3, ($t1)		#	$t3 = $t1.dir
+	sub	$t3, $t3, $t0		#
 	blt	$t3, $a0, m_not_head	# if hayEspacioEnCabeza:
 	sw	$a0, 4($t0)		# cabeza.size = $a0
-	move	$v0, ($t0)		# le devolvemos la direccion.
+	lw	$v0, ($t0)		# le devolvemos la direccion.
+	
+	# Cerramos el compromiso de programador.
+	lw	$fp, 4($sp)
+	addiu	$sp, $sp, 4
 	jr	$ra
-	
+
 m_not_head:
-	li	$t2, 0
+	# Si llegamos hasta aqui, fue por que la cabeza de la lista esta ocupada.
+	li	$t2, 0			# Este registro llevara acumulado la cantidad de espacios intermedios.
 m_loop:	# iteramos sobre los nodos del tad manejador en busca de huecos o null
-	beqz	$t1, end_m_loop
-	lw	$t3, ($t0)
-	lw	$t4, 4($t0)
-	add 	$t3, $t4, $t3 		# buscamos hueco
-	lw	$t4, ($t1)
-	subu	$t3, $t4, $t3
-	
-	bgt	$a0, $t3, m_next_iter	# if hayEspacioDisponibleEnre(a,b):
-	add	$t3, $t0, 12		# $t3 = nodo_intermedio(a,b)
-	lw	$t4, ($t0)		# $t4 = $t0.dirManej
-	lw	$v0, 4($t0)		# $v0 = $t0.size
-	add	$v0, $t5, $t4		# $v0 = dir_espacio_a_retornar
-	sw	$v0, ($t3)		# $t3.dirManej = $v0
-	sw	$a0, 4($t3)		# $$3.size = tamano_pedido
-	sw	$t1, 8($t3)		# $t3.next = $t1
-	sw	$t3, 8($t0)		# $t1.next = $t3
+	beqz	$t1, end_m_loop		# AQUI INICIA UN LOOP
+	lw	$t3, ($t0)		# $t3 = $t0.dir
+	lw	$t4, 4($t0)		# $t4 = $t0.size
+	add 	$t3, $t4, $t3 		# buscamos hueco, $t3 almacenara la direccion que
+					# le daremos al usuario
+	rem	$t4, $t3, 4		# calculamos el resto para saber si la dir es multiplo de 4
+	beqz	$t4, m_calc_space
+	li	$t5, 4
+	subu	$t4, $t5, $t4		# $t5 = 4 - s % 4
+	add	$t3, $t3, $t4		# dirNueva = s + 4 - s % 4
+m_calc_space:
+	lw	$t4, ($t1)		# $t4 = $t1.dir
+	subu	$t5, $t4, $t3		# $t5 tendra el espacio libre entre ambos bloques
+					# referenciados por $t0 y $t1.
+
+	bgt	$a0, $t5, m_next_iter	# if hayEspacioDisponibleEntre(a,b):
+	add	$t5, $t0, 12		# $t5 => nodo intermedio de la lista entre $t0 y $t1
+
+	move	$v0, $t3		# $v0 = dir_espacio_a_retornar
+	sw	$v0, ($t5)		# $t3.dirManej = $v0
+	sw	$a0, 4($t5)		# $$3.size = tamano_pedido
+	sw	$t1, 8($t5)		# $t3.next = $t1
+	sw	$t5, 8($t0)		# $t1.next = $t3
+	lw	$t5, sizeAvail
+	subu	$t5, $t5, $a0
+	sw	$t5, sizeAvail		# Actualizamos el sizeAvail.
+	# Clausura de compromiso de programador:
+	lw	$fp, 4($sp)
+	addiu	$sp, $sp, 4
 	jr $ra				# Retornamos una direccion libre intermedia
+
 m_next_iter:	
-	add	$t2, $t2, $t3		# $t2 += $t3
+	add	$t2, $t2, $t5		# $t2 += $t5 Se incrementa la cantidad de espacios libres.
 	move	$t0, $t1		# $t0 = $t1
 	lw	$t3, 8($t1)
 	move	$t1, $t3		# $t1 = $t1.next
 	b m_loop
 end_m_loop:
+	# Si llegamos hasta aqui, es por que no hay espacios intermedios con $a0 bytes.
+	# Nuestro registro $t2 tendra la cantidad de espacios libres intermedios.
 	lw	$t3, sizeAvail
 	sub	$t2, $t3, $t2
-	blt	$t2, $a0, m_no_memory
+	blt	$t2, $a0, m_no_memory		# Verificamos si hay memoria suficiente al final.
 	move	$t1, $a0			#salvamos el tamano que pidio el usuario
-	li 		$a0, 12
-	li 		$v0, 9
+	li 	$a0, 12				# Pedimos bytes suficientes para crear un nuevo nodo
+	li 	$v0, 9				# en la lista
 	syscall
 	lw	$t3, ($t0)
 	lw	$t2, 4($t0)
-	add	$t2, $t2, $t3
-	sw	$t2, 0($v0)
-	sw	$t1, 4($v0)
-	sw	$0,  8($v0)
-	move	$v0, $t2
+	add	$t2, $t2, $t3			# Calculamos la proxima direccion a entregar
+	sw	$t2, ($v0)			# La guardamos en el nodo agregado.
+	sw	$t1, 4($v0)			# Se guarda la cantidad de bytes pedidos
+	sw	$0,  8($v0)			# El proximo del ultimo es null = 0x0
+	sw	$v0, 8($t0)
+	move	$v0, $t2			# Para retornar dicha direccion
+	
+	# Clausura de compromiso de programador
+	lw	$fp, 4($sp)
+	addiu	$sp, $sp, 4
 	jr	$ra
 	
 m_no_memory:
+	# Se arroja el codigo -1
 	li	$v0, -1
+	lw	$fp, 4($sp)
+	addiu	$sp, $sp, 4
 	jr	$ra
-	
-	
-
