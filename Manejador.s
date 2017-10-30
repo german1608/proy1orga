@@ -34,25 +34,30 @@ cabezaManej:
 	.text
 	.globl	init
 init:
+	# Compromiso de programador
+	addiu	$sp, $sp, -4
+	sw	$fp, 4($sp)
+	addiu	$fp, $sp, 4
 	li	$v0, 9			# Pedimos espacio para el usuario
 
 	syscall
-	la	$t0, sizeInit	# Guardamos el tamano que nos pidio el usuario
-	sw	$a0, ($t0)
-	la	$t0, sizeAvail	# Guardamos el espacio disponible
-	sw	$a0, ($t0)
-	la	$t0, dirManej	# Guardamos la direccion donde comienza la memoria del usuario.
-	sw	$v0, ($t0)
+	sw	$a0, sizeInit		# Guardamos el tamano que nos pidio el usuario
+	sw	$a0, sizeAvail		# Guardamos el espacio disponible
+	sw	$v0, dirManej		# Guardamos la direccion donde comienza la memoria del usuario.
 	
 	li	$a0, 12			# Pido memoria para la cabeza del manejador
 	li	$v0, 9
 	syscall				# $v0 tiene la direccion de memoria de la cabeza del TADM.
 
-	la	$t0, cabezaManej
-	sw	$v0, ($t0)		#$v0 tiene la direccion de la cabeza, se guarda en cabezaManej
-	sw	$0, 4($t0)		#size 0bytes para la cabeza
-	sw	$0, 8($v0)		#cabeza apunta a null inicialmente
+	sw	$v0, cabezaManej
+	lw	$t0, dirManej
+	sw	$t0, ($v0)		# $v0 tiene la direccion de la cabeza, se guarda en cabezaManej
+	sw	$0, 4($t0)		# size 0bytes para la cabeza
+	sw	$0, 8($v0)		# cabeza apunta a null inicialmente
 	
+	# Clausura de compromiso de programador
+	lw	$fp, 4($sp)
+	addiu	$sp, $sp, 4
 	jr	$ra
 	
 # malloc(IN size:entero; OUT address: entero)
