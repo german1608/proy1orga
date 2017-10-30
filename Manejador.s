@@ -2,12 +2,43 @@
 # Autores:
 #   Yuni Quintero
 #   German Robayo
-	
+	.data
+direc:	.word	0, 0, 0, 0, 0
 	
 	.text
 main:
-	li	$a0, 10
-	jal	init
+	li	$a0, 0x1000	# Pedimos 64 megas
+	jal	init		# llamamos a init
+	
+	# malloc de 100 bytes
+	li	$a0, 100
+	jal	malloc
+	
+	la	$v1, direc
+	sw	$v0,  ($v1)
+	# malloc de 100 bytes
+	li	$a0, 100
+	jal	malloc
+	
+	add	$v1, $v1, 4
+	sw	$v0, ($v1)
+
+	# malloc de 100 bytes
+	li	$a0, 100
+	jal	malloc
+
+	add	$v1, $v1, 4
+	sw	$v0, ($v1)
+
+	lw	$a0, -4($v1)
+	jal	free
+	
+	lw	$a0, -8($v1)
+	jal	free
+	
+	la	$a0, 150
+	jal	malloc
+	
 	li	$v0, 10
 	syscall
 
@@ -114,13 +145,16 @@ m_search:
 	lw	$t0, cabezaManej	# $t0 = M.head
 	lw	$t1, 8($t0)		# $t1 = a.next
 	lw	$t3, 4($t0)		# $t3 = a.size
-	bne	$t3, -1, m_not_head	# if a.size == -1: Esto ocurre cuando el segmento de memoria que empieza en (cabezaManej)
+	bne	$t3, $0, m_not_head	# if a.size == 0: Esto ocurre cuando el segmento de memoria que empieza en (cabezaManej)
 					#		fue anteriormente liberado.
 	lw	$t3, ($t1)		#	$t3 = $t1.dir
 	sub	$t3, $t3, $t0		#
 	blt	$t3, $a0, m_not_head	# if hayEspacioEnCabeza:
 	sw	$a0, 4($t0)		# cabeza.size = $a0
 	lw	$v0, ($t0)		# le devolvemos la direccion.
+	lw	$t0, sizeAvail
+	subu	$t0, $t0, $a0
+	sw	$t0, sizeAvail
 	
 	# Cerramos el compromiso de programador.
 	lw	$fp, 4($sp)
@@ -185,6 +219,9 @@ end_m_loop:
 	sw	$t1, 4($v0)			# Se guarda la cantidad de bytes pedidos
 	sw	$0,  8($v0)			# El proximo del ultimo es null = 0x0
 	sw	$v0, 8($t0)
+	lw	$t3, sizeAvail
+	subu	$t3, $t3, $t1
+	sw	$t3, sizeAvail
 	move	$v0, $t2			# Para retornar dicha direccion
 	
 	# Clausura de compromiso de programador
@@ -198,3 +235,68 @@ m_no_memory:
 	lw	$fp, 4($sp)
 	addiu	$sp, $sp, 4
 	jr	$ra
+
+#
+###############################################################################
+# free(IN address:entero; OUT code: entero)
+# Parametros: 
+#	$a0 direccion de comienzo en memoria del segmento de datos
+#	que se quiere liberar
+		
+# Retorno:
+#	0 si la operacion se realizo correctamente
+#	neg si ocurrio un error
+
+# Uso de registros:
+
+
+free:
+	sub 	$sp, $sp, 4				#prolog
+	sw	$fp, ($sp)
+	sub 	$fp, $sp, 0
+	move	$sp, $fp
+
+									#verificar que el address esta ocupado?
+
+	lw	$t0, cabezaManej
+
+free_loop:
+	beqz	$t0,  free_error		#while(a!= null)
+									#si apunta a 0 no encontro la direccion
+	lw	$t1, ($t0)
+	beq 	$t1, $a0, free_node		#if(a.di == address)
+	move	$t2, $t0				#prev = a
+	lw	$t0, 8($t0)				#a = a.next
+	b 	free_loop
+
+free_node:
+	lw	$t1, dirManej
+	beq 	$a0, $t1, free_cabeza	#if(a == cabezaManej)
+	lw 		$t3, 8($t0) 			#$t3 = a.next
+	sw 		$t3, 8($t2)
+	lw 	$t2, 4($t0) 				#$t2 = sizeliberado
+	lw 	$t3, sizeAvail
+	add	$t2, $t3, $t2, 
+	sw 	$t2, sizeAvail				#prev.next = a.next
+	b 		free_end_loop
+
+free_error:
+	li 		$v0, -1					#return -1
+	b 		free_end
+
+free_cabeza:
+	lw 	$t2, 4($t0) 				#$t2 = sizeliberado
+	lw 	$t3, sizeAvail
+	add	$t2, $t3, $t2, 
+	sw 	$t2, sizeAvail
+	sw		$0, 4($t0)				#para identificar que la cab esta libre
+
+free_end_loop:
+	move	$v0, $0					#return 0
+
+free_end:							#epilog
+	add 	$sp, $fp, 0
+	lw 	$fp, ($sp)
+	add 	$sp, $sp, 4
+	jr	$ra
+
