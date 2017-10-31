@@ -314,7 +314,7 @@ free_end:							#epilog
 #	$a1 nuevo tamano que tendra ese esgmento de memoria.
 # Uso de registros:
 
-realloc:
+reallococ:
 	# Compromiso de programador:
 	addiu	$sp, $sp, -4
 	sw	$fp, 4($sp)
@@ -325,7 +325,7 @@ realloc:
 
 	# El siguiente loop busca en la lista de ocupados el nodo cuya dir sea
 	# igual a $a0
-realloc_search_loop:
+reallococ_search_loop:
 	beqz	$t0, realloc_end_search_loop
 
 	# Guardamos en $t1 la direccion en el espacio referenciado por $t0.dir
@@ -334,7 +334,7 @@ realloc_search_loop:
 	lw	$t0, 8($t0)
 	b realloc_search_loop
 
-realloc_end_search_loop:
+reallococ_end_search_loop:
 	# Aqui hay dos casos:
 	# Caso 1: No se haya conseguido elemento
 	bnez	$t0, realloc_modify_node
@@ -342,7 +342,7 @@ realloc_end_search_loop:
 			# el usuario no es valida.
 	b	realloc_finish
 
-realloc_finish:
+reallococ_finish:
 	# Compromiso de programador
 	lw	$fp, 4($sp)
 	addiu	$sp, $sp, 4
