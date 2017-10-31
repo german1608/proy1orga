@@ -320,28 +320,46 @@ reallococ:
 	sw	$fp, 4($sp)
 	addiu	$fp, $sp, 4
 
-	# Guardamos la direccion de la cabeza en $t0
+	# Guardamos la direccion de la cabeza en $t0 y el tamano
+	# disponible en sizeAvail
 	lw	$t0, cabezaManej
+	lw	$t2, sizeAvail
 
 	# El siguiente loop busca en la lista de ocupados el nodo cuya dir sea
 	# igual a $a0
 reallococ_search_loop:
-	beqz	$t0, realloc_end_search_loop
+	beqz	$t0, reallococ_end_search_loop
 
 	# Guardamos en $t1 la direccion en el espacio referenciado por $t0.dir
 	lw	$t1, ($t0)
-	beq	$a0, $t1, realloc_end_search_loop
+	beq	$a0, $t1, reallococ_end_search_loop
 	lw	$t0, 8($t0)
 	b realloc_search_loop
 
 reallococ_end_search_loop:
 	# Aqui hay dos casos:
 	# Caso 1: No se haya conseguido elemento
-	bnez	$t0, realloc_modify_node
+	bnez	$t0, reallococ_modify_node
 	li	$v0, -1	# Retornamos -1 si la direccion que nos suministro
 			# el usuario no es valida.
 	b	realloc_finish
+reallococ_modify_node:
+	# Caso 2: Se consiguio el elemento.
+	lw	$t1, 4($t0)	# $t1 = $t0.size
+	
+	# Ahora surgen otros dos casos:
+	# Caso 1: El argumento $a1 sea menor al tamano que me pidio
+	bge	$t1, $a1, reallococ_less_equal_space
+	b	reallococ_more_space
+reallococ_less_equal_space:
+	sw	$a1, 4($t0)	# $t0.size = $a1
+	subu	$t1, $t1, $a1	# .
+	addu	$t2, $t2, $t1	# .
+	sw	$t2, sizeAvail	# . sizeAvail = $t0.size - $a1
+	move	$v0, $a0
+	b reallococ_finish
 
+reallococ_more_space:
 reallococ_finish:
 	# Compromiso de programador
 	lw	$fp, 4($sp)
