@@ -313,3 +313,37 @@ free_end:							#epilog
 #	$a0 direccion en memoria previamente retornada por malloc o reallococ
 #	$a1 nuevo tamano que tendra ese esgmento de memoria.
 # Uso de registros:
+
+realloc:
+	# Compromiso de programador:
+	addiu	$sp, $sp, -4
+	sw	$fp, 4($sp)
+	addiu	$fp, $sp, 4
+
+	# Guardamos la direccion de la cabeza en $t0
+	lw	$t0, cabezaManej
+
+	# El siguiente loop busca en la lista de ocupados el nodo cuya dir sea
+	# igual a $a0
+realloc_search_loop:
+	beqz	$t0, realloc_end_search_loop
+
+	# Guardamos en $t1 la direccion en el espacio referenciado por $t0.dir
+	lw	$t1, ($t0)
+	beq	$a0, $t1, realloc_end_search_loop
+	lw	$t0, 8($t0)
+	b realloc_search_loop
+
+realloc_end_search_loop:
+	# Aqui hay dos casos:
+	# Caso 1: No se haya conseguido elemento
+	bnez	$t0, realloc_modify_node
+	li	$v0, -1	# Retornamos -1 si la direccion que nos suministro
+			# el usuario no es valida.
+	b	realloc_finish
+
+realloc_finish:
+	# Compromiso de programador
+	lw	$fp, 4($sp)
+	addiu	$sp, $sp, 4
+	jr	$ra
