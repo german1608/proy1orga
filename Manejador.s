@@ -453,12 +453,30 @@ reallococ_less_equal_space:
 	addu	$s0, $s0, $t1	# .
 	sw	$s0, sizeAvail	# . sizeAvail = $t0.size - $a1
 	move	$v0, $a0
-	b reallococ_finish
+	b	reallococ_finish
 
 reallococ_tail_space:
 	subu	$t2, $s0, $t2
 	
-	bgt	$a1, $t2, 
+	ble	$a1, $t2, reallococ_syscall
+	li	$v0, -1
+	b	reallococ_finish
+	
+reallococ_syscall:
+	li	$v0, 9
+	li	$a0, 12
+	syscall
+	
+	# $t0 tiene la direccion del ultimo nodo de la lista
+	sw	$v0, 8($t0)
+	lw	$t4, ($t0)
+	lw	$t5, 4($t0)
+	add	$t5, $t5, $t4
+	sw	$t5, ($v0)
+	sw	$a1, 4($v0)
+	sw	$0, 8($v0)
+	
+	# FALTA EL LLAMADO DE COPY_BYTE
 reallococ_finish:
 	# Compromiso de programador
 	lw	$fp, 8($sp)
