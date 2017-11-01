@@ -379,9 +379,15 @@ reallococ_more_space_loop:
 	lw	$t4, ($t0)
 	lw	$t5, 4($t0)
 	add	$t4, $t4, $t5
+	rem	$t5, $t4, 4
+	beqz	$t5, reallococ_not_rem
+	subu	$t5, $t5, 4
+	neg	$t5, $t5
+	add	$t4, $t4, $t5
 
 	# Aqui se verifica si el nodo en el que estamos parados es el
 	# nodo que tiene la direccion que posee $a0
+reallococ_not_rem:
 	bne	$t1, $s1, reallococ_selected_not_null
 	
 	# $t1 = $t1.next
@@ -390,6 +396,8 @@ reallococ_more_space_loop:
 	# Se verifica si en este punto $t1 == null
 	bnez	$t1, reallococ_selected_not_null
 reallococ_selected_null:
+	# En caso de que el elemento sea null, calculo el espacio entre la direccion
+	# que sigue del bloque refernciado por $t0.dir hasta el final.
 	lw	$t5, sizeInit
 	subu	$t3, $t5, $t4
 	b	reallococ_more_space_continue
