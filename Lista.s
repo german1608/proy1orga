@@ -13,24 +13,13 @@ CabezaLista:
 	.word size
 
 first:
-	.word 4
+	.word 0
 
 last:
-	.word 4
+	.word 0
 
 size:
-	.word 4
-
-Nodo:
-	.word next_
-	.word elem
-
-next_:
-	.word 4
-
-elem:
-	.word 4
-
+	.word 0
 
 # create(OUT: address: entero)
 # parametros: void
@@ -41,19 +30,24 @@ elem:
 .globl create
 
 create:
-	sub 	$sp, $sp, 4		#prolog 		
 	sw		$fp, ($sp)
-	sub 	$fp, $sp, 0
-	move 	$sp, $fp
+	sw		$ra, 4($sp)
+	subi	$sp, $sp, 8
+	move	$fp, $sp
 
-	la 		$v0, CabezaLista
-	sw 		$0, first		# no se ha agregado el primer nodo
-	sw 		$0, size		# no hay nodos, solo la cabeza
-	sw		$0, last 		# por ahora no hay cola, apunta a 0
-	
-	add 	$sp, $fp, 0		#epilog
-	lw 		$fp, ($sp)
-	add 	$sp, $sp, 4
+	lw  	$t0, sizeInit
+	bnez 	$t0, create_ok
+	li 		$v0, -1
+	b 		create_finish
+
+create_ok: 	
+	li 		$a0, 12
+	jal  	malloc
+
+create_finish:
+	addi	$sp, $sp, 8
+	lw		$fp, ($sp)
+	lw		$ra, 4($sp)
 	jr  	$ra
 
 # insert(IN lista_ptr: entero; IN elem_ptr: entero; OUT code: entero)
