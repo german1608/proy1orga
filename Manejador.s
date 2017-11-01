@@ -390,6 +390,9 @@ reallococ_more_space_loop:
 	# Se verifica si en este punto $t1 == null
 	bnez	$t1, reallococ_selected_not_null
 reallococ_selected_null:
+
+	# En caso de que el elemento sea null, calculo el espacio entre la direccion
+	# que sigue del bloque referenciado por $t0.dir hasta el final
 	lw	$t5, sizeInit
 	subu	$t3, $t5, $t4
 	b	reallococ_more_space_continue
@@ -397,7 +400,12 @@ reallococ_selected_not_null:
 	lw	$t5, 4($t1)
 	subu	$t3, $t5, $t3
 reallococ_more_space_continue:
-
+	rem	$t5, $t3, 4
+	beqz	$t5, reallococ_more_space_check
+	sub	$t5, $t5, 4
+	neg	$t5, $t5
+	add	$t3, $t5
+reallococ_more_space_check:	
 	bgt	$a1, $t3, reallococ_more_space_next
 	sw	$a0, ($sp)
 	sw	$a1, 4($sp)
