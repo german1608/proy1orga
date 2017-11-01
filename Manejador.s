@@ -15,7 +15,13 @@ main:
 	
 	sw	$v0, direc
 	
-	move	$a0, $v0
+	li	$a0, 100
+	jal malloc
+	
+	sw	$v0, direc+4
+
+	lw	$a0, direc
+	
 	li	$a1, 200
 	
 	jal reallococ
@@ -397,37 +403,39 @@ reallococ_selected_null:
 	# En caso de que el elemento sea null, calculo el espacio entre la direccion
 	# que sigue del bloque refernciado por $t0.dir hasta el final.
 	lw	$t5, sizeInit
-	subu	$t3, $t5, $t4
+	lw	$t3, dirManej
+	add	$t5, $t3, $t5	# Con esto obtengo la direccion que viene despues del espacio ocupado
+	sub	$t3, $t5, $t4
 	b	reallococ_more_space_continue
 reallococ_selected_not_null:
-	lw	$t5, 4($t1)
-	subu	$t3, $t5, $t3
+	lw	$t5, ($t1)
+	sub	$t3, $t5, $t4
 reallococ_more_space_continue:
 
 	bgt	$a1, $t3, reallococ_more_space_next
 	sw	$a0, ($sp)
-	sw	$a1, 4($sp)
-	sw	$t0, 8($sp)
-	sw	$t1, 12($sp)
-	sw	$t2, 16($sp)
-	sw	$t3, 20($sp)
-	sw	$t4, 24($sp)
-	sw	$t5, 28($sp)
+	sw	$a1, -4($sp)
+	sw	$t0, -8($sp)
+	sw	$t1, -12($sp)
+	sw	$t2, -16($sp)
+	sw	$t3, -20($sp)
+	sw	$t4, -24($sp)
+	sw	$t5, -28($sp)
 	sub	$sp, $sp, 32
 
-	lw	$a2, 4($sp)
+	move	$a2, $a1
 	move	$a1, $t4
 	jal	copy_bytes
 
 	add	$sp, $sp, 32
 	lw	$a0, ($sp)
-	lw	$a1, 4($sp)
-	lw	$t0, 8($sp)
-	lw	$t1, 12($sp)
-	lw	$t2, 16($sp)
-	lw	$t3, 20($sp)
-	lw	$t4, 24($sp)
-	lw	$t5, 28($sp)
+	lw	$a1, -4($sp)
+	lw	$t0, -8($sp)
+	lw	$t1, -12($sp)
+	lw	$t2, -16($sp)
+	lw	$t3, -20($sp)
+	lw	$t4, -24($sp)
+	lw	$t5, -28($sp)
 
 	move	$v0, $t4
 	
@@ -450,7 +458,7 @@ reallococ_more_space_continue:
 reallococ_more_space_next:
 	add	$t2, $t2, $t3
 	lw	$t0, 8($t0)
-	lw	$t1, 8($t0)
+	lw	$t1, 8($t1)
 	b	reallococ_more_space_loop
 
 reallococ_less_equal_space:
@@ -477,12 +485,45 @@ reallococ_syscall:
 	sw	$v0, 8($t0)
 	lw	$t4, ($t0)
 	lw	$t5, 4($t0)
+	sw	$0, 4($s1)
 	add	$t5, $t5, $t4
 	sw	$t5, ($v0)
 	sw	$a1, 4($v0)
 	sw	$0, 8($v0)
 	
-	# FALTA EL LLAMADO DE COPY_BYTE
+	# Convencionn para llamar a copy_bytes
+	sw	$a0, ($sp)
+	sw	$a1, -4($sp)
+	sw	$t0, -8($sp)
+	sw	$t1, -12($sp)
+	sw	$t2, -16($sp)
+	sw	$t3, -20($sp)
+	sw	$t4, -24($sp)
+	sw	$t5, -28($sp)
+	sub	$sp, $sp, 32
+
+	move	$a2, $a1
+	move	$a1, $t5
+	lw	$a0, ($s1)
+	jal	copy_bytes
+
+	add	$sp, $sp, 32
+	lw	$a0, ($sp)
+	lw	$a1, -4($sp)
+	lw	$t0, -8($sp)
+	lw	$t1, -12($sp)
+	lw	$t2, -16($sp)
+	lw	$t3, -20($sp)
+	lw	$t4, -24($sp)
+	lw	$t5, -28($sp)
+
+	lw	$t1, sizeAvail
+	lw	$t0, 4($t0)
+	add	$t1, $t1, $t0
+	subu	$t1, $t1, $a1
+	sw	$t1, sizeAvail
+	
+	lw	$v0, ($v0)
 reallococ_finish:
 	# Compromiso de programador
 	addi	$sp, $sp, 16
