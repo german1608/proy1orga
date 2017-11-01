@@ -5,22 +5,6 @@
 
 .include Manejador.s
 
-.data
-
-CabezaLista:	
-	.word first
-	.word last
-	.word size
-
-first:
-	.word 0
-
-last:
-	.word 0
-
-size:
-	.word 0
-
 # create(OUT: address: entero)
 # parametros: void
 # retorno: $v0 direccion donde se encuentra la cabeza de la lista
@@ -43,6 +27,9 @@ create:
 create_ok: 	
 	li 		$a0, 12
 	jal  	malloc
+	sw 		$0, ($v0) 		#first=0
+	sw 		$0, 4($v0)		#last=0
+	sw 		$0, 8($v0)		#size=0
 
 create_finish:
 	addi	$sp, $sp, 8
@@ -59,38 +46,49 @@ create_finish:
 .globl insert
 
 insert:
-	sub 	$sp, $sp, 4 		#prolog
-	sw 		$ra, ($sp)
-	sub 	$sp, $sp, 4
-	sw 		$fp, ($sp)
-	sub 	$fp, $sp, 0
-	move 	$sp, $fp
+	sw		$fp, ($sp)
+	sw		$ra, 4($sp)
+	subi	$sp, $sp, 8
+	move	$fp, $sp
 
+	lw  	$t0, sizeInit
+	bnez 	$t0, insert_ok
+insert_err:
+	li 		$v0, -1
+	b 		insert_finish
+
+insert_ok:
+	sw		$a0, ($sp)
+	subi	$sp, $sp, 4
 	li 		$a0, 8 				#espacio a alocado para el nodo 8 bytes
 	jal 	malloc
-	lw 		$t0, size
+
+	lw		$a0, 4($sp)
+	addi	$sp, $sp, 4
+
+	blt		$v0, $0, insert_err
+
+	lw 		$t0, 8($a0)
 	addi 	$t0, $t0, 1			#incrementamos la cantidd de nodos en la lista
-	sw 		$t0, size
+	sw 		$t0, 8($a0)
 	beq 	$t0, 1, insert_first #si solo hay uno, insertamos el primero
-	lw 		$t0, last			#$t0= direccion del last actual
+	lw 		$t0, 4($a0)			#$t0= direccion del last actual
 	sw		$v0, ($t0)			# last actual.next apunta a la dir que inserte
-	sw 		$v0, last			#nuevo last
+	sw 		$v0, 4($a0)			#nuevo last
 	b 		insert_node
 
 insert_first:
-	sw 		$v0, first 			# first apunta al insertado
-	sw 		$v0, last			#last apunta al insertado
+	sw 		$v0, ($a0) 			# first apunta al insertado
+	sw 		$v0, 4($a0)			#last apunta al insertado
 
 insert_node:
-	lw 		$t0, last 			#obtenemos nuevo last
-	sw 		$0, ($t0) 			#apunta a null
-	sw   	$a1, 4($t0) 		#apunta a la dir del elemento
+	sw 		$0, ($v0) 			#apunta a null
+	sw   	$a1, 4($v0) 		#apunta a la dir del elemento
 
-	add 	$sp, $fp, 0 		#epilog
-	lw 		$fp, ($sp)
-	add 	$sp, $sp, 4
-	lw 		$ra, ($sp)
-	add 	$sp, $sp, 4
+insert_finish:
+	addi	$sp, $sp, 8
+	lw		$fp, ($sp)
+	lw		$ra, 4($sp)
 	move 	$v0, $0
 	jr 		$ra
 
@@ -111,10 +109,10 @@ delete:
 	sub 	$fp, $sp, 0
 	move 	$sp, $fp
 
-	lw 		$t0, 1
-	lw 		$t1, size
-	lw 		$t2, first 			#$t2 = nodo actual
-	la 		$t3, first  		# $t3 = prev  o es lw?
+	li		$t0, 1
+	lw 		$t1, 8($a0)  		#size
+	lw 		$t2, ($a0) 			#$t2 = nodo actual
+	la 		$t3, ($a0)  		# $t3 = prev  o es lw?
 
 delete_loop:
 	bge 	$a1, $t1, delete_error # posno esta en el rango
@@ -127,22 +125,19 @@ delete_loop:
 delete_node:
 	lw 		$t4, ($t2)			#$t4 = nodo.next
 	sw 		$t4, ($t3)			#prev.next=nodo.next
-	move 	$a0, $t2
+	
 	subi 	$t1, $t1, 1
-	sw 		$t1, size
+	sw 		$t1, 8($a0)
+	move 	$a0, $t2
 	jal 	free
 	move 	$v0, 4($t2) 		#retorna la dir del elemento
 	b 		delete_end
 
 delente_error:
-	li 		$t0, -1
-	move 	$v0, $t1
+	li 	$v0, -1
 	
 delete_end:
-	add 	$sp, $fp, 0 		#epilog
-	lw 		$fp, ($sp)
-	add 	$sp, $sp, 4
-	lw 		$ra, ($sp)
-	add 	$sp, $sp, 4
-	move 	$v0, $0
+	addi	$sp, $sp, 8
+	lw		$fp, ($sp)
+	lw		$ra, 4($sp)
 	jr 		$ra
