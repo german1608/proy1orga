@@ -403,6 +403,7 @@ reallococ_more_space_next:
 	lw	$t0, 8($t0)
 	lw	$t1, 8($t0)
 	b reallococ_more_space_loop
+
 reallococ_less_equal_space:
 	sw	$a1, 4($t0)	# $t0.size = $a1
 	subu	$t1, $t1, $a1	# .
@@ -410,6 +411,7 @@ reallococ_less_equal_space:
 	sw	$s0, sizeAvail	# . sizeAvail = $t0.size - $a1
 	move	$v0, $a0
 	b reallococ_finish
+
 reallococ_tail_space:
 reallococ_finish:
 	# Compromiso de programador
@@ -423,4 +425,27 @@ reallococ_finish:
 # copy_bytes(IN dir1:direc, dir2:direc, int size; out: void)
 # Descripcion:
 #	Funcion que copia size bytes de dir1 a dir2
+# Parametros:
+#	$a0. Direccion de inicio
+#	$a1. Direccion de llegada
+#	$a2. Cantidad de bytes a copiar
 copy_bytes:
+	sw	$fp, ($sp)
+	subi	$sp, $sp, 4
+	
+	li	$t0, 0
+copy_bytes_loop:
+	bge	$t0, $a2, copy_bytes_fin_loop
+	lw	$t1, ($a0)
+	sw	$t1, ($a1)
+	addi	$a0, $a0, 4
+	addi	$a1, $a1, 4
+	addi	$t0, $t0, 4
+	b copy_bytes_loop
+	
+copy_bytes_fin_loop:
+	addi	$sp, $sp, 4
+	lw	$fp, ($sp)
+	jr	$ra
+	
+	
