@@ -10,40 +10,15 @@ main:
 	li	$a0, 0x1000	# Pedimos 64 megas
 	jal	init		# llamamos a init
 	
-	# malloc de 100 bytes
 	li	$a0, 100
-	jal	malloc
+	jal malloc
 	
-	la	$v1, direc
-	sw	$v0,  ($v1)
-	# malloc de 100 bytes
-	li	$a0, 100
-	jal	malloc
+	sw	$v0, direc
 	
-	add	$v1, $v1, 4
-	sw	$v0, ($v1)
-
-	# malloc de 100 bytes
-	li	$a0, 100
-	jal	malloc
-
-	add	$v1, $v1, 4
-	sw	$v0, ($v1)
-
-	lw	$a0, -4($v1)
-	jal	free
-	
-	la	$a0, 100
-	jal	malloc
-	add	$v1, $v1, 4
-	sw	$v0, ($v1)
-	
-	lw	$a0, -12($v1)
-	jal	free
-	
-	lw	$a0, ($v1)
+	move	$a0, $v0
 	li	$a1, 200
-	jal	reallococ
+	
+	jal reallococ
 	li	$v0, 10
 	syscall
 
@@ -331,17 +306,34 @@ free_end:							#epilog
 #	En reallcoc_more_space se usa para tener la referncia al siguiente nodo.
 reallococ:
 	# Compromiso de programador:
-	addiu	$sp, $sp, -16
-	sw	$fp, 16($sp)
-	sw	$ra, 12($sp)
-	sw	$s0, 8($sp)
-	sw	$s1, 4($sp)
-	addiu	$fp, $sp, 12
+	sw	$fp, ($sp)
+	sw	$ra, -4($sp)
+	sw	$s0, -8($sp)
+	sw	$s1, -12($sp)
+	addi	$sp, $sp, -16
 
 	# Guardamos la direccion de la cabeza en $t0 y el tamano
 	# disponible en sizeAvail
 	lw	$t0, cabezaManej
 	lw	$s0, sizeAvail
+	
+	# Caso en el que SOLO se haya alocado actualmente un bloque de bytes
+	lw	$t1, 8($t0)
+	bnez	$t1, reallococ_search_loop
+	lw	$t1, 4($t0)
+	ble	$a1, $t1, reallococ_less_equal_space
+	lw	$t2, sizeInit
+	
+	# Verificamos si hay espacio disponible. sino retornamos -1
+	ble	$a1, $t2, reallococ_head_space
+	li	$v0, -1
+	b	reallococ_finish
+reallococ_head_space:
+	sw	$a1, 4($t0)
+	lw	$v0, ($t0)
+	sub	$t2, $t2, $a1
+	sw	$t2, sizeAvail
+	b	reallococ_finish
 
 	# El siguiente loop busca en la lista de ocupados el nodo cuya dir sea
 	# igual a $a0
@@ -493,9 +485,11 @@ reallococ_syscall:
 	# FALTA EL LLAMADO DE COPY_BYTE
 reallococ_finish:
 	# Compromiso de programador
-	lw	$fp, 8($sp)
-	lw	$s0, 4($sp)
-	addiu	$sp, $sp, 8
+	addi	$sp, $sp, 16
+	lw	$fp, ($sp)
+	lw	$ra, -4($sp)
+	lw	$s0, -8($sp)
+	lw	$s1, -12($sp)
 	jr	$ra
 
 #
