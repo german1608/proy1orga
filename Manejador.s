@@ -33,12 +33,17 @@ main:
 	lw	$a0, -4($v1)
 	jal	free
 	
-	lw	$a0, -8($v1)
+	la	$a0, 100
+	jal	malloc
+	add	$v1, $v1, 4
+	sw	$v0, ($v1)
+	
+	lw	$a0, -12($v1)
 	jal	free
 	
-	la	$a0, 150
-	jal	malloc
-	
+	lw	$a0, ($v1)
+	li	$a1, 200
+	jal	reallococ
 	li	$v0, 10
 	syscall
 
@@ -144,11 +149,12 @@ m_search:
 	# Ahora, llegar aqui no garantiza que hayan bloques de memoria continuos con $a0 bytes.
 	lw	$t0, cabezaManej	# $t0 = M.head
 	lw	$t1, 8($t0)		# $t1 = a.next
+	lw	$t2, ($t0)		# $t2 = a.dir
 	lw	$t3, 4($t0)		# $t3 = a.size
 	bne	$t3, $0, m_not_head	# if a.size == 0: Esto ocurre cuando el segmento de memoria que empieza en (cabezaManej)
 					#		fue anteriormente liberado.
 	lw	$t3, ($t1)		#	$t3 = $t1.dir
-	sub	$t3, $t3, $t0		#
+	sub	$t3, $t3, $t2		#
 	blt	$t3, $a0, m_not_head	# if hayEspacioEnCabeza:
 	sw	$a0, 4($t0)		# cabeza.size = $a0
 	lw	$v0, ($t0)		# le devolvemos la direccion.
