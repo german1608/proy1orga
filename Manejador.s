@@ -325,8 +325,9 @@ free_end:							#epilog
 #	En reallcoc_more_space se usa para tener la referncia al siguiente nodo.
 reallococ:
 	# Compromiso de programador:
-	addiu	$sp, $sp, -12
-	sw	$fp, 12($sp)
+	addiu	$sp, $sp, -16
+	sw	$fp, 16($sp)
+	sw	$ra, 12($sp)
 	sw	$s0, 8($sp)
 	sw	$s1, 4($sp)
 	addiu	$fp, $sp, 12
@@ -345,7 +346,7 @@ reallococ_search_loop:
 	lw	$t1, ($t0)
 	beq	$a0, $t1, reallococ_end_search_loop
 	lw	$t0, 8($t0)
-	b realloc_search_loop
+	b reallococ_search_loop
 
 reallococ_end_search_loop:
 	# Aqui hay dos casos:
@@ -353,7 +354,7 @@ reallococ_end_search_loop:
 	bnez	$t0, reallococ_modify_node
 	li	$v0, -1	# Retornamos -1 si la direccion que nos suministro
 			# el usuario no es valida.
-	b	realloc_finish
+	b	reallococ_finish
 reallococ_modify_node:
 	# Caso 2: Se consiguio el elemento.
 	lw	$t1, 4($t0)	# $t1 = $t0.size
@@ -363,7 +364,7 @@ reallococ_modify_node:
 	bge	$t1, $a1, reallococ_less_equal_space
 	# Caso 2: El argumento $a1 sea mayor o igual
 reallococ_more_space:
-	move	$s1, $t0	# $s1 = $t1 (esto no esta planeado a cambiar)
+	move	$s1, $t0	# $s1 = $t0 (esto no esta planeado a cambiar)
 	
 	lw	$t0, cabezaManej
 	lw	$t1, 8($t0)
@@ -396,13 +397,55 @@ reallococ_selected_not_null:
 	lw	$t5, 4($t1)
 	subu	$t3, $t5, $t3
 reallococ_more_space_continue:
+
+	bgt	$a1, $t3, reallococ_more_space_next
+	sw	$a0, ($sp)
+	sw	$a1, 4($sp)
+	sw	$t0, 8($sp)
+	sw	$t1, 12($sp)
+	sw	$t2, 16($sp)
+	sw	$t3, 20($sp)
+	sw	$t4, 24($sp)
+	sw	$t5, 28($sp)
+	sub	$sp, $sp, 32
+
+	lw	$a2, 4($sp)
+	move	$a1, $t4
+	jal	copy_bytes
+
+	add	$sp, $sp, 32
+	lw	$a0, ($sp)
+	lw	$a1, 4($sp)
+	lw	$t0, 8($sp)
+	lw	$t1, 12($sp)
+	lw	$t2, 16($sp)
+	lw	$t3, 20($sp)
+	lw	$t4, 24($sp)
+	lw	$t5, 28($sp)
+
+	move	$v0, $t4
 	
-	bge	$a1, $t3, reallococ_more_space_next
+	# Obtengo el nodo de la lista que esta libre
+	add	$t4, $t0, 12
+	lw	$t5, 4($s1)
+	# Acomodamos punteros
+	sw	$t4, 8($t0) # prev.next = new
+	sw	$t1, 8($t4) # new.next = next
+	sw	$a1, 4($t4) # new.size = size
+	
+	# Actualizamos el tamano. Recordemos que $s0 tiene el espacio
+	# disponible anterior.
+	lw	$t5, 4($s1)
+	subu	$t5, $a1, $t5
+	subu	$t5, $s0, $t5
+	sw	$t5, sizeAvail
+	b reallococ_finish
+
 reallococ_more_space_next:
 	add	$t2, $t2, $t3
 	lw	$t0, 8($t0)
 	lw	$t1, 8($t0)
-	b reallococ_more_space_loop
+	b	reallococ_more_space_loop
 
 reallococ_less_equal_space:
 	sw	$a1, 4($t0)	# $t0.size = $a1
@@ -413,6 +456,9 @@ reallococ_less_equal_space:
 	b reallococ_finish
 
 reallococ_tail_space:
+	subu	$t2, $s0, $t2
+	
+	bgt	$a1, $t2, 
 reallococ_finish:
 	# Compromiso de programador
 	lw	$fp, 8($sp)
