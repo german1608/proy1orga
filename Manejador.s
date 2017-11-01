@@ -310,20 +310,31 @@ free_end:							#epilog
 #	y la relocaliza con el fin de poder aumentar o disminuir ese segmento de memoria.
 #	Los datos que estan en ese segmento migraran al proximo segmento.
 # Parametros:
-#	$a0 direccion en memoria previamente retornada por malloc o reallococ
+#	$a0 direccion en memoria
 #	$a1 nuevo tamano que tendra ese esgmento de memoria.
 # Uso de registros:
-
+#	$t0: Registro que permitira recorrer toda la lista.
+#	$s0: Contiene el espacio disponible del manejador.
+#	$s1: En caso de que el programa encuentre la direccion que se quiere reallocar,
+#	este registro guardara la direccion del nodo que contiene la informacion de
+#	bloque.
+#	$t1: En reallococ_search_loop se usa para cargar la direccion del
+#	inicio del segmento de memoria previamente reservado.
+#	En reallococ_modify_node se usa para obtener el tamano del nodo
+#	que posee la direccion pasada por $a0
+#	En reallcoc_more_space se usa para tener la referncia al siguiente nodo.
 reallococ:
 	# Compromiso de programador:
-	addiu	$sp, $sp, -4
-	sw	$fp, 4($sp)
-	addiu	$fp, $sp, 4
+	addiu	$sp, $sp, -12
+	sw	$fp, 12($sp)
+	sw	$s0, 8($sp)
+	sw	$s1, 4($sp)
+	addiu	$fp, $sp, 12
 
 	# Guardamos la direccion de la cabeza en $t0 y el tamano
 	# disponible en sizeAvail
 	lw	$t0, cabezaManej
-	lw	$t2, sizeAvail
+	lw	$s0, sizeAvail
 
 	# El siguiente loop busca en la lista de ocupados el nodo cuya dir sea
 	# igual a $a0
@@ -346,22 +357,70 @@ reallococ_end_search_loop:
 reallococ_modify_node:
 	# Caso 2: Se consiguio el elemento.
 	lw	$t1, 4($t0)	# $t1 = $t0.size
-	
+
 	# Ahora surgen otros dos casos:
 	# Caso 1: El argumento $a1 sea menor al tamano que me pidio
 	bge	$t1, $a1, reallococ_less_equal_space
-	b	reallococ_more_space
+	# Caso 2: El argumento $a1 sea mayor o igual
+reallococ_more_space:
+	move	$s1, $t0	# $s1 = $t1 (esto no esta planeado a cambiar)
+	
+	lw	$t0, cabezaManej
+	lw	$t1, 8($t0)
+	li	$t2, 0
+reallococ_more_space_loop:
+	beqz	$t1, reallococ_tail_space
+	# Este loop llevara cuenta del espacio intermedio entre cada nodo
+	# en el registro $t2.
+	
+	# $t3 representa el espacio intermedio
+	# $t4 representa la direccion del "nuevo espacio" a realocar
+	lw	$t4, ($t0)
+	lw	$t5, 4($t0)
+	add	$t4, $t4, $t5
+
+	# Aqui se verifica si el nodo en el que estamos parados es el
+	# nodo que tiene la direccion que posee $a0
+	bne	$t1, $s1, reallococ_selected_not_null
+	
+	# $t1 = $t1.next
+	lw	$t1, 8($t1)
+	
+	# Se verifica si en este punto $t1 == null
+	bnez	$t1, reallococ_selected_not_null
+reallococ_selected_null:
+	lw	$t5, sizeInit
+	subu	$t3, $t5, $t4
+	b	reallococ_more_space_continue
+reallococ_selected_not_null:
+	lw	$t5, 4($t1)
+	subu	$t3, $t5, $t3
+reallococ_more_space_continue:
+	
+	bge	$a1, $t3, reallococ_more_space_next
+reallococ_more_space_next:
+	add	$t2, $t2, $t3
+	lw	$t0, 8($t0)
+	lw	$t1, 8($t0)
+	b reallococ_more_space_loop
 reallococ_less_equal_space:
 	sw	$a1, 4($t0)	# $t0.size = $a1
 	subu	$t1, $t1, $a1	# .
-	addu	$t2, $t2, $t1	# .
-	sw	$t2, sizeAvail	# . sizeAvail = $t0.size - $a1
+	addu	$s0, $s0, $t1	# .
+	sw	$s0, sizeAvail	# . sizeAvail = $t0.size - $a1
 	move	$v0, $a0
 	b reallococ_finish
-
-reallococ_more_space:
+reallococ_tail_space:
 reallococ_finish:
 	# Compromiso de programador
-	lw	$fp, 4($sp)
-	addiu	$sp, $sp, 4
+	lw	$fp, 8($sp)
+	lw	$s0, 4($sp)
+	addiu	$sp, $sp, 8
 	jr	$ra
+
+#
+###############################################################################
+# copy_bytes(IN dir1:direc, dir2:direc, int size; out: void)
+# Descripcion:
+#	Funcion que copia size bytes de dir1 a dir2
+copy_bytes:
