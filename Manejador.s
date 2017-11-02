@@ -22,7 +22,7 @@ dirManej:
 	.space 4
 cabezaManej:
 	.space 4
-
+	.globl sizeInit, sizeAvail, dirManej, cabezaManej
 	.text
 	.globl	init
 init:

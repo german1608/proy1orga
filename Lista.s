@@ -3,8 +3,6 @@
 #   Yuni Quintero
 #   German Robayo
 
-.include Manejador.s
-
 # create(OUT: address: entero)
 # parametros: void
 # retorno: $v0 direccion donde se encuentra la cabeza de la lista
@@ -144,10 +142,10 @@ delete_call:
 	sw 		$t1, 8($a0)
 	move 	$a0, $t2
 	jal 	free
-	move 	$v0, 4($t2) 		#retorna la dir del elemento
+	lw 	$v0, 4($t2) 		#retorna la dir del elemento
 	b 		delete_end
 
-delente_error:
+delete_error:
 	li 	$v0, -1
 	
 delete_end:
