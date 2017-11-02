@@ -30,7 +30,11 @@ init:
 	sw	$fp, ($sp)
 	subi	$sp, $sp, 4
 	move	$fp, $sp
+	
+	bgt	$a0, $0, init_ok
+	li	$v0, -1
 
+init_ok:
 	li	$v0, 9			# Pedimos espacio para el usuario
 
 	syscall
@@ -42,13 +46,16 @@ init:
 	li	$v0, 9
 	syscall				# $v0 tiene la direccion de memoria de la cabeza del TADM.
 	blt	$v0, $0, init_end
-	beqz	$v0, init_end
+	beqz	$v0, init_err
 	sw	$v0, cabezaManej
 	lw	$t0, dirManej
 	sw	$t0, ($v0)		# $v0 tiene la direccion de la cabeza, se guarda en cabezaManej
 	sw	$0, 4($t0)		# size 0bytes para la cabeza
 	sw	$0, 8($v0)		# cabeza apunta a null inicialmente
 	move	$v0, $0
+	b	init_end
+init_err:
+	li	$v0, -2
 init_end:
 	# Clausura de compromiso de programador
 	addiu	$sp, $sp, 4
