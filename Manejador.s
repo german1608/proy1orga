@@ -22,6 +22,18 @@ dirManej:
 	.space 4
 cabezaManej:
 	.space 4
+errMessage1:
+	.asciiz "init: argumento invalido"
+errMessage2:
+	.asciiz "init: error con syscall"
+errMessage3:
+	.asciiz "malloc: argumento invalido. fuera de rango"
+errMessage4:
+	.asciiz "reallococ/malloc: no hay memoria disponible"
+errMessage5:
+	.asciiz "reallococ/free: argumento invalido. no previamente retornado por malloc/reallococ"
+errMessage6:
+	.asciiz "reallococ/malloc: no hay memoria continua disponible"
 	.globl sizeInit, sizeAvail, dirManej, cabezaManej
 	.text
 	.globl	init
@@ -91,7 +103,7 @@ malloc:
 	b	malloc_inv_number
 malloc_valid_plus:
 	bgtz	$a0, malloc_valid_number
-malloc_inv_number
+malloc_inv_number:
 	li	$v0, -3
 	lw	$fp, 4($sp)
 	addiu	$sp, $sp, 4
@@ -559,4 +571,51 @@ copy_bytes_fin_loop:
 	lw	$fp, ($sp)
 	jr	$ra
 	
+#
+###############################################################################
+# perror(IN code:entero; OUT: void)
+# Descripcion:
+#	Funcion que imprime un mensaje de error basado en code
+# Parametros:
+#	$a0. codigo de error
+# Planificacion de registros:
+#	$t0, guarda
+perror:
+	sw	$fp, ($sp)
+	subi	$sp, $sp, 4
+	move	$fp, $sp
 	
+	neg	$a0, $a0
+	li	$t0, 1
+	beq	$a0, $t0, perror_1
+	addi	$t0, $t0, 1
+	beq	$a0, $t0, perror_2
+	addi	$t0, $t0, 1
+	beq	$a0, $t0, perror_3
+	addi	$t0, $t0, 1
+	beq	$a0, $t0, perror_4
+	addi	$t0, $t0, 1
+	beq	$a0, $t0, perror_5
+	la	$a0, errMessage6
+	b	perror_finish
+perror_1:
+	la	$a0, errMessage1
+	b	perror_finish
+perror_2:
+	la	$a0, errMessage2
+	b	perror_finish
+perror_3:
+	la	$a0, errMessage3
+	b	perror_finish
+perror_4:
+	la	$a0, errMessage4
+	b	perror_finish
+perror_5:
+	la	$a0, errMessage5
+	b	perror_finish
+perror_finish:
+	li	$v0, 4
+	syscall
+	
+	add	$sp, $sp, 4
+	lw	$fp, ($sp)
