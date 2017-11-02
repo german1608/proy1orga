@@ -57,14 +57,16 @@ insert_err:
 
 insert_ok:
 	sw	$a0, ($sp)
-	subi	$sp, $sp, 4
-	li 	$a0, 8 				#espacio a alocado para el nodo 8 bytes
+	sw	$t0, -4($sp)
+	subi	$sp, $sp, 8
+	li 	$a0, 8			#espacio a alocado para el nodo 8 bytes
 	jal 	malloc
 
-	lw	$a0, 4($sp)
-	addi	$sp, $sp, 4
+	addi	$sp, $sp, 8
+	lw	$a0, ($sp)
+	lw	$t0, -4($sp)
 
-	blt	$v0, $0, insert_err
+	blt	$v0, $0, insert_finish
 
 	lw	$t0, 8($a0)
 	addi	$t0, $t0, 1			#incrementamos la cantidd de nodos en la lista
@@ -139,8 +141,30 @@ delete_last:
 delete_call:
 	subi	$t1, $t1, 1
 	sw	$t1, 8($a0)
+	
+	sw	$a0, ($sp)
+	sw	$a1, -4($sp)
+	sw	$t0, -8($sp)
+	sw	$t1, -12($sp)
+	sw	$t2, -16($sp)
+	sw	$t3, -20($sp)
+	sw	$t4, -24($sp)
+	sw	$t5, -28($sp)
+	subi	$sp, $sp, 32
+	
 	move	$a0, $t2
 	jal	free
+	
+	addi	$sp, $sp, 32
+	sw	$a0, ($sp)
+	sw	$a1, -4($sp)
+	sw	$t0, -8($sp)
+	sw	$t1, -12($sp)
+	sw	$t2, -16($sp)
+	sw	$t3, -20($sp)
+	sw	$t4, -24($sp)
+	sw	$t5, -28($sp)
+	
 	lw	$v0, 4($t2) 		#retorna la dir del elemento
 	b	delete_end
 
