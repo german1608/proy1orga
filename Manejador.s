@@ -26,10 +26,11 @@ cabezaManej:
 	.text
 	.globl	init
 init:
-	# Compromiso de programador
-	addiu	$sp, $sp, -4
-	sw	$fp, 4($sp)
-	addiu	$fp, $sp, 4
+	# Convencion de programador
+	sw	$fp, ($sp)
+	subi	$sp, $sp, 4
+	move	$fp, $sp
+
 	li	$v0, 9			# Pedimos espacio para el usuario
 
 	syscall
@@ -50,8 +51,8 @@ init:
 	move	$v0, $0
 init_end:
 	# Clausura de compromiso de programador
-	lw	$fp, 4($sp)
 	addiu	$sp, $sp, 4
+	lw	$fp, ($sp)
 	jr	$ra
 	
 #
@@ -74,22 +75,22 @@ malloc:
 	# Compromiso de programador
 	addiu	$sp, $sp, -4
 	sw	$fp, 4($sp)
-	addiu	$fp, $sp, 4
+	move	$fp, $sp
 	
 	lw	$t1, sizeInit
 
 	# En caso de que el parametro no este en rangos validos
-	ble	$a0, $t1 m_valid_number
-	bgtz	$a0, m_valid_number
+	ble	$a0, $t1 malloc_valid_number
+	bgtz	$a0, malloc_valid_number
 	li	$v0, -2
 	lw	$fp, 4($sp)
 	addiu	$sp, $sp, 4
 	jr	$ra
-m_valid_number:
+malloc_valid_number:
 	lw 	$t0, sizeAvail
 	
 	# el siguiente branch es el caso en el que TODA la memoria esta disponible
-	bne	$t0, $t1, m_head_not_init
+	bne	$t0, $t1, malloc_head_not_init
 	lw	$t1, cabezaManej
 	sw	$a0, 4($t1)
 	lw	$v0, ($t1)
@@ -99,21 +100,21 @@ m_valid_number:
 	addiu	$sp, $sp, 4
 	jr	$ra
 
-m_head_not_init:
-	ble	$a0, $t0, m_search	# if sizeAvail < $a0:
-	b m_no_memory
+malloc_head_not_init:
+	ble	$a0, $t0, malloc_search	# if sizeAvail < $a0:
+	b malloc_no_memory
 
-m_search:
+malloc_search:
 	# Ahora, llegar aqui no garantiza que hayan bloques de memoria continuos con $a0 bytes.
 	lw	$t0, cabezaManej	# $t0 = M.head
 	lw	$t1, 8($t0)		# $t1 = a.next
 	lw	$t2, ($t0)		# $t2 = a.dir
 	lw	$t3, 4($t0)		# $t3 = a.size
-	bne	$t3, $0, m_not_head	# if a.size == 0: Esto ocurre cuando el segmento de memoria que empieza en (cabezaManej)
+	bne	$t3, $0, malloc_not_head	# if a.size == 0: Esto ocurre cuando el segmento de memoria que empieza en (cabezaManej)
 					#		fue anteriormente liberado.
 	lw	$t3, ($t1)		#	$t3 = $t1.dir
 	sub	$t3, $t3, $t2		#
-	blt	$t3, $a0, m_not_head	# if hayEspacioEnCabeza:
+	blt	$t3, $a0, malloc_not_head	# if hayEspacioEnCabeza:
 	sw	$a0, 4($t0)		# cabeza.size = $a0
 	lw	$v0, ($t0)		# le devolvemos la direccion.
 	lw	$t0, sizeAvail
@@ -125,26 +126,26 @@ m_search:
 	addiu	$sp, $sp, 4
 	jr	$ra
 
-m_not_head:
+malloc_not_head:
 	# Si llegamos hasta aqui, fue por que la cabeza de la lista esta ocupada.
 	li	$t2, 0			# Este registro llevara acumulado la cantidad de espacios intermedios.
-m_loop:	# iteramos sobre los nodos del tad manejador en busca de huecos o null
-	beqz	$t1, end_m_loop		# AQUI INICIA UN LOOP
+malloc_loop:	# iteramos sobre los nodos del tad manejador en busca de huecos o null
+	beqz	$t1, malloc_end_loop		# AQUI INICIA UN LOOP
 	lw	$t3, ($t0)		# $t3 = $t0.dir
 	lw	$t4, 4($t0)		# $t4 = $t0.size
 	add 	$t3, $t4, $t3 		# buscamos hueco, $t3 almacenara la direccion que
 					# le daremos al usuario
 	rem	$t4, $t3, 4		# calculamos el resto para saber si la dir es multiplo de 4
-	beqz	$t4, m_calc_space
+	beqz	$t4, malloc_calc_space
 	li	$t5, 4
 	subu	$t4, $t5, $t4		# $t5 = 4 - s % 4
 	add	$t3, $t3, $t4		# dirNueva = s + 4 - s % 4
-m_calc_space:
+malloc_calc_space:
 	lw	$t4, ($t1)		# $t4 = $t1.dir
 	subu	$t5, $t4, $t3		# $t5 tendra el espacio libre entre ambos bloques
 					# referenciados por $t0 y $t1.
 
-	bgt	$a0, $t5, m_next_iter	# if hayEspacioDisponibleEntre(a,b):
+	bgt	$a0, $t5, malloc_next_iter	# if hayEspacioDisponibleEntre(a,b):
 	add	$t5, $t0, 12		# $t5 => nodo intermedio de la lista entre $t0 y $t1
 
 	move	$v0, $t3		# $v0 = dir_espacio_a_retornar
@@ -160,18 +161,18 @@ m_calc_space:
 	addiu	$sp, $sp, 4
 	jr $ra				# Retornamos una direccion libre intermedia
 
-m_next_iter:	
+malloc_next_iter:	
 	add	$t2, $t2, $t5		# $t2 += $t5 Se incrementa la cantidad de espacios libres.
 	move	$t0, $t1		# $t0 = $t1
 	lw	$t3, 8($t1)
 	move	$t1, $t3		# $t1 = $t1.next
-	b m_loop
-end_m_loop:
+	b malloc_loop
+malloc_end_loop:
 	# Si llegamos hasta aqui, es por que no hay espacios intermedios con $a0 bytes.
 	# Nuestro registro $t2 tendra la cantidad de espacios libres intermedios.
 	lw	$t3, sizeAvail
 	sub	$t2, $t3, $t2
-	blt	$t2, $a0, m_no_memory		# Verificamos si hay memoria suficiente al final.
+	blt	$t2, $a0, malloc_no_memory	# Verificamos si hay memoria suficiente al final.
 	move	$t1, $a0			#salvamos el tamano que pidio el usuario
 	li 	$a0, 12				# Pedimos bytes suficientes para crear un nuevo nodo
 	li 	$v0, 9				# en la lista
@@ -199,7 +200,7 @@ malloc_no_rem:
 	addiu	$sp, $sp, 4
 	jr	$ra
 	
-m_no_memory:
+malloc_no_memory:
 	# Se arroja el codigo -1
 	li	$v0, -1
 	lw	$fp, 4($sp)
@@ -222,9 +223,8 @@ m_no_memory:
 
 free:
 	sub 	$sp, $sp, 4				#prolog
-	sw	$fp, ($sp)
-	sub 	$fp, $sp, 0
-	move	$sp, $fp
+	sw	$fp, 4($sp)
+	move	$fp, $sp
 
 									#verificar que el address esta ocupado?
 
@@ -267,8 +267,7 @@ free_end_loop:
 	move	$v0, $0					#return 0
 
 free_end:							#epilog
-	add 	$sp, $fp, 0
-	lw 	$fp, ($sp)
+	lw 	$fp, 4($sp)
 	add 	$sp, $sp, 4
 	jr	$ra
 
