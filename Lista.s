@@ -156,14 +156,14 @@ delete_call:
 	jal	free
 	
 	addi	$sp, $sp, 32
-	sw	$a0, ($sp)
-	sw	$a1, -4($sp)
-	sw	$t0, -8($sp)
-	sw	$t1, -12($sp)
-	sw	$t2, -16($sp)
-	sw	$t3, -20($sp)
-	sw	$t4, -24($sp)
-	sw	$t5, -28($sp)
+	lw	$a0, ($sp)
+	lw	$a1, -4($sp)
+	lw	$t0, -8($sp)
+	lw	$t1, -12($sp)
+	lw	$t2, -16($sp)
+	lw	$t3, -20($sp)
+	lw	$t4, -24($sp)
+	lw	$t5, -28($sp)
 	
 	lw	$v0, 4($t2) 		#retorna la dir del elemento
 	b	delete_end
