@@ -13,14 +13,11 @@ main:
 	jal	create
 	sw	$v0, head1
 	
-	jal	create
-	sw	$v0, head2
-	
 	lw	$a0, head1
 	la	$a1, elem1
 	jal	insert
 	
-	lw	$a0, head2
+	lw	$a0, head1
 	la	$a1, elem2
 	jal	insert
 	
@@ -28,7 +25,7 @@ main:
 	la	$a1, elem1
 	jal	insert
 	
-	lw	$a0, head2
+	lw	$a0, head1
 	la	$a1, elem2
 	jal	insert
 
@@ -44,7 +41,7 @@ main:
 	la	$a1, elem2
 	jal	insert
 	
-	lw	$a0, head2
+	lw	$a0, head1
 	la	$a1, elem1
 	jal	insert
 	
@@ -52,10 +49,11 @@ main:
 	la	$a1, elem2
 	jal	insert
 	
-	lw	$a0, head2
+	lw	$a0, head1
 	la	$a1, elem1
 	jal	insert
 	lw	$a0, head1
+
 	li	$a1, 2
 	jal	delete
 	
