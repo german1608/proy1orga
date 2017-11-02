@@ -12,8 +12,8 @@
 .globl create
 
 create:
-	sw		$fp, ($sp)
-	sw		$ra, 4($sp)
+	sw	$fp, ($sp)
+	sw	$ra, -4($sp)
 	subi	$sp, $sp, 8
 	move	$fp, $sp
 
@@ -31,8 +31,8 @@ create_ok:
 
 create_finish:
 	addi	$sp, $sp, 8
-	lw		$fp, ($sp)
-	lw		$ra, 4($sp)
+	lw	$fp, ($sp)
+	lw	$ra, -4($sp)
 	jr  	$ra
 
 # insert(IN lista_ptr: entero; IN elem_ptr: entero; OUT code: entero)
@@ -44,8 +44,8 @@ create_finish:
 .globl insert
 
 insert:
-	sw		$fp, ($sp)
-	sw		$ra, 4($sp)
+	sw	$fp, ($sp)
+	sw	$ra, -4($sp)
 	subi	$sp, $sp, 8
 	move	$fp, $sp
 
@@ -85,10 +85,10 @@ insert_node:
 
 insert_finish:
 	addi	$sp, $sp, 8
-	lw		$fp, ($sp)
-	lw		$ra, 4($sp)
+	lw	$fp, ($sp)
+	lw	$ra, -4($sp)
 	move 	$v0, $0
-	jr 		$ra
+	jr 	$ra
 
 # delete(IN lista_ptr: entero; IN pos: entero; OUT address: entero)
 # parametros: $a0 direccion de la cabeza de la lista, $a1 posicion del elemento
@@ -100,50 +100,48 @@ insert_finish:
 .globl delete
 
 delete:
-	sub 	$sp, $sp, 4 		#prolog
-	sw 		$ra, ($sp)
-	sub 	$sp, $sp, 4
-	sw 		$fp, ($sp)
-	sub 	$fp, $sp, 0
-	move 	$sp, $fp
+	sw	$fp, ($sp)
+	sw	$ra, -4($sp)
+	sub	$sp, $sp, 8 		#prolog
+	move	$fp, $sp
 
-	li		$t0, 1
-	lw 		$t1, 8($a0)  		#size
-	lw 		$t5, 8($a0)			#size
-	lw 		$t2, ($a0) 			#$t2 = nodo actual
-	lw 		$t3, ($a0)  		# $t3 = prev  
+	li	$t0, 1
+	lw	$t1, 8($a0)  		#size
+	lw	$t5, 8($a0)			#size
+	lw	$t2, ($a0) 			#$t2 = nodo actual
+	lw	$t3, ($a0)  		# $t3 = prev  
 
 delete_loop:
-	bge 	$a1, $t1, delete_error # posno esta en el rango
-	beq 	$t0, $a1, delete_node
-	addi 	$t0, $t0, 1
-	move 	$t3, $t2			# prev = nodo
-	lw 		$t2, ($t2)			# nodo=nodo.next
-	b 		delete_loop
+	bge	$a1, $t1, delete_error # posno esta en el rango
+	beq	$t0, $a1, delete_node
+	addi	$t0, $t0, 1
+	move	$t3, $t2			# prev = nodo
+	lw	$t2, ($t2)			# nodo=nodo.next
+	b	delete_loop
 
 delete_node:
-	beq 	$a1, 1, delete_first #si elimino el primero
-	beq 	$a1, $t5, delete_last #si elimino el ultimo
-	lw 		$t4, ($t2)			#$t4 = nodo.next
-	sw 		$t4, ($t3)			#prev.next=nodo.next
-	b 		delete_call
+	beq	$a1, 1, delete_first #si elimino el primero
+	beq	$a1, $t5, delete_last #si elimino el ultimo
+	lw	$t4, ($t2)			#$t4 = nodo.next
+	sw	$t4, ($t3)			#prev.next=nodo.next
+	b	delete_call
 
 delete_first:
-	lw 		$t0, ($t2)		#$t0=a.next, a es el nodo que elimino
-	sw 		$t0, ($a0)		#first=next del que elimine
-	b 		delete_call
+	lw	$t0, ($t2)		#$t0=a.next, a es el nodo que elimino
+	sw	$t0, ($a0)		#first=next del que elimine
+	b	delete_call
 		
 delete_last:
-	lw 		$t0, ($t3) 		#linea 122, $t3 es el prev
-	sw 		$t0, 4($a0) 	#last=prev del que elimine
+	lw	$t0, ($t3) 		#linea 122, $t3 es el prev
+	sw	$t0, 4($a0) 	#last=prev del que elimine
 
 delete_call:
-	subi 	$t1, $t1, 1
-	sw 		$t1, 8($a0)
-	move 	$a0, $t2
-	jal 	free
-	lw 	$v0, 4($t2) 		#retorna la dir del elemento
-	b 		delete_end
+	subi	$t1, $t1, 1
+	sw	$t1, 8($a0)
+	move	$a0, $t2
+	jal	free
+	lw	$v0, 4($t2) 		#retorna la dir del elemento
+	b	delete_end
 
 delete_error:
 	li 	$v0, -1
