@@ -155,3 +155,32 @@ delete_end:
 	lw		$fp, ($sp)
 	lw		$ra, 4($sp)
 	jr 		$ra
+
+# print(IN lista_ptr: entero; IN fun_print: entero; OUT void)
+# parametros: $a0 direccion de la cabeza de la lista, $a1 fun_print
+#retorno: void
+
+.text
+.globl print
+
+print:
+	sw		$fp, ($sp)
+	sw		$ra, 4($sp)
+	subi	$sp, $sp, 8
+	move	$fp, $sp
+	
+	lw 		$t0, ($a0)		#$t0= primer nodo
+	
+print_loop:
+	beqz 	$t0, print_end
+	lw 		$a0, 4($t0) 	#$a0=dir del elemento
+	jarl 	$a1
+	lw 		$t0, ($t0) 		#nodo=nodo.next
+	b 		print_loop
+
+print_end:
+	addi	$sp, $sp, 8
+	lw		$fp, ($sp)
+	lw		$ra, 4($sp)
+	move 	$v0, $0
+	jr 		$ra
