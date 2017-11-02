@@ -87,9 +87,12 @@ malloc:
 	lw	$t1, sizeInit
 
 	# En caso de que el parametro no este en rangos validos
-	ble	$a0, $t1 malloc_valid_number
+	ble	$a0, $t1 malloc_valid_plus
+	b	malloc_inv_number
+malloc_valid_plus:
 	bgtz	$a0, malloc_valid_number
-	li	$v0, -2
+malloc_inv_number
+	li	$v0, -3
 	lw	$fp, 4($sp)
 	addiu	$sp, $sp, 4
 	jr	$ra
@@ -179,7 +182,7 @@ malloc_end_loop:
 	# Nuestro registro $t2 tendra la cantidad de espacios libres intermedios.
 	lw	$t3, sizeAvail
 	sub	$t2, $t3, $t2
-	blt	$t2, $a0, malloc_no_memory	# Verificamos si hay memoria suficiente al final.
+	blt	$t2, $a0, malloc_no_cont_memory	# Verificamos si hay memoria suficiente al final.
 	move	$t1, $a0			#salvamos el tamano que pidio el usuario
 	li 	$a0, 12				# Pedimos bytes suficientes para crear un nuevo nodo
 	li 	$v0, 9				# en la lista
@@ -209,7 +212,13 @@ malloc_no_rem:
 	
 malloc_no_memory:
 	# Se arroja el codigo -1
-	li	$v0, -1
+	li	$v0, -4
+	lw	$fp, 4($sp)
+	addiu	$sp, $sp, 4
+	jr	$ra
+malloc_no_cont_memory:
+	# Se arroja el codigo -1
+	li	$v0, -6
 	lw	$fp, 4($sp)
 	addiu	$sp, $sp, 4
 	jr	$ra
@@ -260,7 +269,7 @@ free_node:
 	b	free_end_loop
 
 free_error:
-	li 		$v0, -1					#return -1
+	li 		$v0, -5			#return -1
 	b 		free_end
 
 free_cabeza:
@@ -319,9 +328,9 @@ reallococ:
 	ble	$a1, $t1, reallococ_less_equal_space
 	lw	$t2, sizeInit
 	
-	# Verificamos si hay espacio disponible. sino retornamos -1
+	# Verificamos si hay espacio disponible. sino retornamos -4
 	ble	$a1, $t2, reallococ_head_space
-	li	$v0, -1
+	li	$v0, -4
 	b	reallococ_finish
 reallococ_head_space:
 	sw	$a1, 4($t0)
@@ -345,7 +354,7 @@ reallococ_end_search_loop:
 	# Aqui hay dos casos:
 	# Caso 1: No se haya conseguido elemento
 	bnez	$t0, reallococ_modify_node
-	li	$v0, -1	# Retornamos -1 si la direccion que nos suministro
+	li	$v0, -5	# Retornamos -1 si la direccion que nos suministro
 			# el usuario no es valida.
 	b	reallococ_finish
 reallococ_modify_node:
@@ -462,7 +471,7 @@ reallococ_tail_space:
 	subu	$t2, $s0, $t2
 	
 	ble	$a1, $t2, reallococ_syscall
-	li	$v0, -1
+	li	$v0, -6
 	b	reallococ_finish
 	
 reallococ_syscall:
