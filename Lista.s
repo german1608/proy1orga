@@ -23,17 +23,17 @@ create:
 	b 		create_finish
 
 create_ok: 	
-	li 		$a0, 12
-	jal  	malloc
-	sw 		$0, ($v0) 		#first=0
-	sw 		$0, 4($v0)		#last=0
-	sw 		$0, 8($v0)		#size=0
+	li 	$a0, 12
+	jal	malloc
+	sw	$0, ($v0) 		#first=0
+	sw	$0, 4($v0)		#last=0
+	sw	$0, 8($v0)		#size=0
 
 create_finish:
 	addi	$sp, $sp, 8
 	lw	$fp, ($sp)
 	lw	$ra, -4($sp)
-	jr  	$ra
+	jr	$ra
 
 # insert(IN lista_ptr: entero; IN elem_ptr: entero; OUT code: entero)
 # parametros: $a0 direccion de la cabeza de la lista, $a1 direccion del
@@ -52,43 +52,43 @@ insert:
 	lw  	$t0, sizeInit
 	bnez 	$t0, insert_ok
 insert_err:
-	li 		$v0, -1
-	b 		insert_finish
+	li 	$v0, -1
+	b 	insert_finish
 
 insert_ok:
-	sw		$a0, ($sp)
+	sw	$a0, ($sp)
 	subi	$sp, $sp, 4
-	li 		$a0, 8 				#espacio a alocado para el nodo 8 bytes
+	li 	$a0, 8 				#espacio a alocado para el nodo 8 bytes
 	jal 	malloc
 
-	lw		$a0, 4($sp)
+	lw	$a0, 4($sp)
 	addi	$sp, $sp, 4
 
-	blt		$v0, $0, insert_err
+	blt	$v0, $0, insert_err
 
-	lw 		$t0, 8($a0)
-	addi 	$t0, $t0, 1			#incrementamos la cantidd de nodos en la lista
-	sw 		$t0, 8($a0)
-	beq 	$t0, 1, insert_first #si solo hay uno, insertamos el primero
-	lw 		$t0, 4($a0)			#$t0= direccion del last actual
-	sw		$v0, ($t0)			# last actual.next apunta a la dir que inserte
-	sw 		$v0, 4($a0)			#nuevo last
-	b 		insert_node
+	lw	$t0, 8($a0)
+	addi	$t0, $t0, 1			#incrementamos la cantidd de nodos en la lista
+	sw	$t0, 8($a0)
+	beq	$t0, 1, insert_first #si solo hay uno, insertamos el primero
+	lw	$t0, 4($a0)			#$t0= direccion del last actual
+	sw	$v0, ($t0)			# last actual.next apunta a la dir que inserte
+	sw	$v0, 4($a0)			#nuevo last
+	b	insert_node
 
 insert_first:
-	sw 		$v0, ($a0) 			# first apunta al insertado
-	sw 		$v0, 4($a0)			#last apunta al insertado
+	sw	$v0, ($a0) 			# first apunta al insertado
+	sw	$v0, 4($a0)			#last apunta al insertado
 
 insert_node:
-	sw 		$0, ($v0) 			#apunta a null
-	sw   	$a1, 4($v0) 		#apunta a la dir del elemento
+	sw	$0, ($v0) 			#apunta a null
+	sw  	$a1, 4($v0) 		#apunta a la dir del elemento
 
 insert_finish:
 	addi	$sp, $sp, 8
 	lw	$fp, ($sp)
 	lw	$ra, -4($sp)
-	move 	$v0, $0
-	jr 	$ra
+	move	$v0, $0
+	jr	$ra
 
 # delete(IN lista_ptr: entero; IN pos: entero; OUT address: entero)
 # parametros: $a0 direccion de la cabeza de la lista, $a1 posicion del elemento
@@ -111,8 +111,9 @@ delete:
 	lw	$t2, ($a0) 			#$t2 = nodo actual
 	lw	$t3, ($a0)  		# $t3 = prev  
 
+	bgt	$a1, $t1, delete_error # posno esta en el rango
+
 delete_loop:
-	bge	$a1, $t1, delete_error # posno esta en el rango
 	beq	$t0, $a1, delete_node
 	addi	$t0, $t0, 1
 	move	$t3, $t2			# prev = nodo
@@ -144,7 +145,7 @@ delete_call:
 	b	delete_end
 
 delete_error:
-	li 	$v0, -1
+	li	$v0, -1
 	
 delete_end:
 	addi	$sp, $sp, 8
