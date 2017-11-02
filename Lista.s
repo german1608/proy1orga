@@ -111,8 +111,9 @@ delete:
 
 	li		$t0, 1
 	lw 		$t1, 8($a0)  		#size
+	lw 		$t5, 8($a0)			#size
 	lw 		$t2, ($a0) 			#$t2 = nodo actual
-	la 		$t3, ($a0)  		# $t3 = prev  o es lw?
+	lw 		$t3, ($a0)  		# $t3 = prev  
 
 delete_loop:
 	bge 	$a1, $t1, delete_error # posno esta en el rango
@@ -123,9 +124,22 @@ delete_loop:
 	b 		delete_loop
 
 delete_node:
+	beq 	$a1, 1, delete_first #si elimino el primero
+	beq 	$a1, $t5, delete_last #si elimino el ultimo
 	lw 		$t4, ($t2)			#$t4 = nodo.next
 	sw 		$t4, ($t3)			#prev.next=nodo.next
-	
+	b 		delete_call
+
+delete_first:
+	lw 		$t0, ($t2)		#$t0=a.next, a es el nodo que elimino
+	sw 		$t0, ($a0)		#first=next del que elimine
+	b 		delete_call
+		
+delete_last:
+	lw 		$t0, ($t3) 		#linea 122, $t3 es el prev
+	sw 		$t0, 4($a0) 	#last=prev del que elimine
+
+delete_call:
 	subi 	$t1, $t1, 1
 	sw 		$t1, 8($a0)
 	move 	$a0, $t2
