@@ -310,239 +310,125 @@ free_end:							#epilog
 #	$a0 direccion en memoria
 #	$a1 nuevo tamano que tendra ese esgmento de memoria.
 # Uso de registros:
-#	$t0: Registro que permitira recorrer toda la lista.
-#	$s0: Contiene el espacio disponible del manejador.
-#	$s1: En caso de que el programa encuentre la direccion que se quiere reallocar,
-#	este registro guardara la direccion del nodo que contiene la informacion de
-#	bloque.
-#	$t1: En reallococ_search_loop se usa para cargar la direccion del
-#	inicio del segmento de memoria previamente reservado.
-#	En reallococ_modify_node se usa para obtener el tamano del nodo
-#	que posee la direccion pasada por $a0
-#	En reallcoc_more_space se usa para tener la referncia al siguiente nodo.
+#	$s0: Tendra el nodo de la lista que hace referencia a $a0
+#	$s1: Tendra el nodo anterior a $s0.
+#	$s2: Tendra el tamano anterior.
 reallococ:
-	# Compromiso de programador:
+	# Convenciones del llamado
 	sw	$fp, ($sp)
 	sw	$ra, -4($sp)
 	sw	$s0, -8($sp)
 	sw	$s1, -12($sp)
-	addi	$sp, $sp, -16
-
-	# Guardamos la direccion de la cabeza en $t0 y el tamano
-	# disponible en sizeAvail
-	lw	$t0, cabezaManej
-	lw	$s0, sizeAvail
+	subi	$sp, $sp, 16
 	
-	# Caso en el que SOLO se haya alocado actualmente un bloque de bytes
-	lw	$t1, 8($t0)
-	bnez	$t1, reallococ_search_loop
-	lw	$t1, 4($t0)
-	ble	$a1, $t1, reallococ_less_equal_space
-	lw	$t2, sizeInit
-	
-	# Verificamos si hay espacio disponible. sino retornamos -4
-	ble	$a1, $t2, reallococ_head_space
-	li	$v0, -4
-	b	reallococ_finish
-reallococ_head_space:
-	sw	$a1, 4($t0)
-	lw	$v0, ($t0)
-	sub	$t2, $t2, $a1
-	sw	$t2, sizeAvail
-	b	reallococ_finish
-
-	# El siguiente loop busca en la lista de ocupados el nodo cuya dir sea
-	# igual a $a0
+	lw	$t0, cabezaManej	# $t0 = primer nodo
+	li	$t1, 0			# $t1 = inicializado en 0x0, pero este
+					# guardaria el nodo anterior a $t0.
+	lw	$t2, ($t0)		# $t2 tiene la direccion que guarda el nodo
+					# en la direccion de memoria referenciada
+					# por $t0.
 reallococ_search_loop:
-	beqz	$t0, reallococ_end_search_loop
-
-	# Guardamos en $t1 la direccion en el espacio referenciado por $t0.dir
-	lw	$t1, ($t0)
-	beq	$a0, $t1, reallococ_end_search_loop
+	# En este loop, buscamos el nodo que referencia al contenido de $a0
+	beq	$t2, $a0, reallococ_end_search_loop
+	move	$t1, $t0
 	lw	$t0, 8($t0)
-	b reallococ_search_loop
+	lw	$t2, ($t0)
+	b	reallococ_search_loop
 
 reallococ_end_search_loop:
-	# Aqui hay dos casos:
-	# Caso 1: No se haya conseguido elemento
-	bnez	$t0, reallococ_modify_node
-	li	$v0, -5	# Retornamos -1 si la direccion que nos suministro
-			# el usuario no es valida.
-	b	reallococ_finish
-reallococ_modify_node:
-	# Caso 2: Se consiguio el elemento.
-	lw	$t1, 4($t0)	# $t1 = $t0.size
+	move	$s0, $t0	# $s0 tiene la direccion del nodo de la lista que tiene
+				# la direccion que deseo realocar
+	move	$s1, $t1	# $s1 tiene el nodo anterior al nodo referenciado por $s0
+	
+	lw	$s2, 4($t0)	# Guardamos el tamano por si acaso.
 
-	# Ahora surgen otros dos casos:
-	# Caso 1: El argumento $a1 sea menor al tamano que me pidio
-	bge	$t1, $a1, reallococ_less_equal_space
-	# Caso 2: El argumento $a1 sea mayor o igual
+	lw	$t0, 4($s0)	# Cargamos el espacio reservado anteriormente
+	ble	$a1, $t0, reallococ_less_space
+
 reallococ_more_space:
-	move	$s1, $t0	# $s1 = $t0 (esto no esta planeado a cambiar)
+	# En caso de que se desee aumentar la memoria, primero debemos liberar
+	# ese segmento.
 	
-	lw	$t0, cabezaManej
-	lw	$t1, 8($t0)
-	li	$t2, 0
-reallococ_more_space_loop:
-	beqz	$t1, reallococ_tail_space
-	# Este loop llevara cuenta del espacio intermedio entre cada nodo
-	# en el registro $t2.
-	
-	# $t3 representa el espacio intermedio
-	# $t4 representa la direccion del "nuevo espacio" a realocar
-	lw	$t4, ($t0)
-	lw	$t5, 4($t0)
-	add	$t4, $t4, $t5
-	rem	$t5, $t4, 4
-	beqz	$t5, reallococ_not_rem
-	subu	$t5, $t5, 4
-	neg	$t5, $t5
-	add	$t4, $t4, $t5
-
-	# Aqui se verifica si el nodo en el que estamos parados es el
-	# nodo que tiene la direccion que posee $a0
-reallococ_not_rem:
-	bne	$t1, $s1, reallococ_selected_not_null
-	
-	# $t1 = $t1.next
-	lw	$t1, 8($t1)
-	
-	# Se verifica si en este punto $t1 == null
-	bnez	$t1, reallococ_selected_not_null
-reallococ_selected_null:
-	# En caso de que el elemento sea null, calculo el espacio entre la direccion
-	# que sigue del bloque refernciado por $t0.dir hasta el final.
-	lw	$t5, sizeInit
-	lw	$t3, dirManej
-	add	$t5, $t3, $t5	# Con esto obtengo la direccion que viene despues del espacio ocupado
-	sub	$t3, $t5, $t4
-	b	reallococ_more_space_continue
-reallococ_selected_not_null:
-	lw	$t5, ($t1)
-	sub	$t3, $t5, $t4
-reallococ_more_space_continue:
-
-	bgt	$a1, $t3, reallococ_more_space_next
+	# Seguimos las convenciones, en este caso, la subrutina
+	# es un llamador.
 	sw	$a0, ($sp)
 	sw	$a1, -4($sp)
-	sw	$t0, -8($sp)
-	sw	$t1, -12($sp)
-	sw	$t2, -16($sp)
-	sw	$t3, -20($sp)
-	sw	$t4, -24($sp)
-	sw	$t5, -28($sp)
-	sub	$sp, $sp, 32
-
-	move	$a2, $a1
-	move	$a1, $t4
-	jal	copy_bytes
-
-	add	$sp, $sp, 32
+	subi	$sp, $sp, 8
+	
+	# Ya $a0 tiene la direccion que queremos liberar.
+	jal	free
+	# Esto no arroja error ya que el argumento es valido.
+	
+	# Seguimos las convenciones.
+	addi	$sp, $sp, 8
 	lw	$a0, ($sp)
 	lw	$a1, -4($sp)
-	lw	$t0, -8($sp)
-	lw	$t1, -12($sp)
-	lw	$t2, -16($sp)
-	lw	$t3, -20($sp)
-	lw	$t4, -24($sp)
-	lw	$t5, -28($sp)
+	
+	# Ahora tenemos que hacer malloc con $a1 como argumento,
+	# pues queremo ver si hay esa cantidad de espacio.
+	# Seguimos las convenciones nuevamente.
+	sw	$a0, ($sp)
+	sw	$a1, -4($sp)
+	subi	$sp, $sp, 8
+	
+	# Recordemos que $a1 tiene el tamano nuevo.
+	move	$a0, $a1
+	jal	malloc
+	# Esto puede arrojar error en caso de que no haya o no haya
+	# espacio continuo. En tal caso, el codigo del error esta en $v0.
+	# Si todo salio bien, es decir, se pudo reservar otro segmento de
+	# memoria, $v0 sera mayor a 0 y tendra la direccion que me interersa.
+	addi	$sp, $sp, 8
+	lw	$a0, ($sp)
+	lw	$a1, -4($sp)
+	blt	$v0, $0, reallococ_nothing_happened
+	
+	# La subrutina copy_bytes toma tres argumentos
+	lw	$a0, ($s0)	# La direccion origen
+	move	$a1, $v0	# La direccion destino
+	move	$a2, $s2	# La cantidad de bytes que se copian.
+	
+	sw	$v0, ($sp)	# Guardamos la direccion retorno por si acaso.
+	subi	$sp, $sp, 4
 
-	move	$v0, $t4
+	jal	copy_bytes
 	
-	# Obtengo el nodo de la lista que esta libre
-	add	$t4, $t0, 12
-	lw	$t5, 4($s1)
-	# Acomodamos punteros
-	sw	$t4, 8($t0) # prev.next = new
-	sw	$t1, 8($t4) # new.next = next
-	sw	$a1, 4($t4) # new.size = size
+	addi	$sp, $sp, 4
+	lw	$v0, ($sp)
+	b	reallococ_finish
+reallococ_nothing_happened:
+	# Recordemos que $s0 tiene todavia la direccion de aquel nodo.
+	# Dado que en teoria "se libero" memoria, tenemos que volver
+	# a dejar todo como antes.
+	# free lo que hace es que el nodo anterior al que tiene la direccion
+	# en memoria que se desea eliminar apunte a su siguiente. Tambien
+	# actualiza el availSize, incrementandolo.
+	# Restauramos sizeAvail
+	lw	$t0, sizeAvail
+	sw	$s2, 4($s0)	# Restauramos el tamano en el nodo.
+	subu	$t0, $t0, $s2	# Decrementamos el tamano disponible.
+	sw	$t0, sizeAvail	# Actualizado.
 	
-	# Actualizamos el tamano. Recordemos que $s0 tiene el espacio
-	# disponible anterior.
-	lw	$t5, 4($s1)
-	subu	$t5, $a1, $t5
-	subu	$t5, $s0, $t5
-	sw	$t5, sizeAvail
+	# Ahora tenemos que hacer que el anterior apunte a este.
+	# Si el nodo que se elimino fue la cabeza, $s1 seria igual a 0x00,
+	# entonces no habria que hacer nada.
+	beqz	$s1, reallococ_finish
+	
+	sw	$s0, 8($s1)	# $s1.next = $s0
 	b reallococ_finish
-
-reallococ_more_space_next:
-	add	$t2, $t2, $t3
-	lw	$t0, 8($t0)
-	lw	$t1, 8($t1)
-	b	reallococ_more_space_loop
-
-reallococ_less_equal_space:
-	sw	$a1, 4($t0)	# $t0.size = $a1
-	subu	$t1, $t1, $a1	# .
-	addu	$s0, $s0, $t1	# .
-	sw	$s0, sizeAvail	# . sizeAvail = $t0.size - $a1
+reallococ_less_space:
+	# En caso de que se desea reducir la memoria lo que hacemos es cambiar
+	# el atributo size del nodo.
+	sw	$a1, 4($s0)
 	move	$v0, $a0
-	b	reallococ_finish
-
-reallococ_tail_space:
-	subu	$t2, $s0, $t2
-	
-	ble	$a1, $t2, reallococ_syscall
-	li	$v0, -6
-	b	reallococ_finish
-	
-reallococ_syscall:
-	li	$v0, 9
-	li	$a0, 12
-	syscall
-	
-	# $t0 tiene la direccion del ultimo nodo de la lista
-	sw	$v0, 8($t0)
-	lw	$t4, ($t0)
-	lw	$t5, 4($t0)
-	sw	$0, 4($s1)
-	add	$t5, $t5, $t4
-	sw	$t5, ($v0)
-	sw	$a1, 4($v0)
-	sw	$0, 8($v0)
-	
-	# Convencionn para llamar a copy_bytes
-	sw	$a0, ($sp)
-	sw	$a1, -4($sp)
-	sw	$t0, -8($sp)
-	sw	$t1, -12($sp)
-	sw	$t2, -16($sp)
-	sw	$t3, -20($sp)
-	sw	$t4, -24($sp)
-	sw	$t5, -28($sp)
-	sub	$sp, $sp, 32
-
-	move	$a2, $a1
-	move	$a1, $t5
-	lw	$a0, ($s1)
-	jal	copy_bytes
-
-	add	$sp, $sp, 32
-	lw	$a0, ($sp)
-	lw	$a1, -4($sp)
-	lw	$t0, -8($sp)
-	lw	$t1, -12($sp)
-	lw	$t2, -16($sp)
-	lw	$t3, -20($sp)
-	lw	$t4, -24($sp)
-	lw	$t5, -28($sp)
-
-	lw	$t1, sizeAvail
-	lw	$t0, 4($t0)
-	add	$t1, $t1, $t0
-	subu	$t1, $t1, $a1
-	sw	$t1, sizeAvail
-	
-	lw	$v0, ($v0)
 reallococ_finish:
-	# Compromiso de programador
 	addi	$sp, $sp, 16
 	lw	$fp, ($sp)
 	lw	$ra, -4($sp)
 	lw	$s0, -8($sp)
 	lw	$s1, -12($sp)
 	jr	$ra
-
+	
 #
 ###############################################################################
 # copy_bytes(IN dir1:direc, dir2:direc, int size; out: void)
