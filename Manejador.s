@@ -1,32 +1,7 @@
-	# Manejador.s
+# Manejador.s
 # Autores:
 #   Yuni Quintero
 #   German Robayo
-	.data
-direc:	.word	0, 0, 0, 0, 0
-	
-	.text
-main:
-	li	$a0, 0x1000	# Pedimos 64 megas
-	jal	init		# llamamos a init
-	
-	li	$a0, 100
-	jal malloc
-	
-	sw	$v0, direc
-	
-	li	$a0, 100
-	jal malloc
-	
-	sw	$v0, direc+4
-
-	lw	$a0, direc
-	
-	li	$a1, 200
-	
-	jal reallococ
-	li	$v0, 10
-	syscall
 
 # init(IN size:entero; OUT code:entero)
 # Descripcion:inicializa el manejador de memoria.
@@ -65,13 +40,15 @@ init:
 	li	$a0, 12			# Pido memoria para la cabeza del manejador
 	li	$v0, 9
 	syscall				# $v0 tiene la direccion de memoria de la cabeza del TADM.
-
+	blt	$v0, $0, init_end
+	beqz	$v0, init_end
 	sw	$v0, cabezaManej
 	lw	$t0, dirManej
 	sw	$t0, ($v0)		# $v0 tiene la direccion de la cabeza, se guarda en cabezaManej
 	sw	$0, 4($t0)		# size 0bytes para la cabeza
 	sw	$0, 8($v0)		# cabeza apunta a null inicialmente
-	
+	move	$v0, $0
+init_end:
 	# Clausura de compromiso de programador
 	lw	$fp, 4($sp)
 	addiu	$sp, $sp, 4
@@ -202,6 +179,12 @@ end_m_loop:
 	lw	$t3, ($t0)
 	lw	$t2, 4($t0)
 	add	$t2, $t2, $t3			# Calculamos la proxima direccion a entregar
+	rem	$t5, $t2, 4
+	beqz	$t5, malloc_no_rem
+	sub	$t5, $t5, 4
+	neg	$t5, $t5
+	add	$t2, $t2, $t5
+malloc_no_rem:
 	sw	$t2, ($v0)			# La guardamos en el nodo agregado.
 	sw	$t1, 4($v0)			# Se guarda la cantidad de bytes pedidos
 	sw	$0,  8($v0)			# El proximo del ultimo es null = 0x0
