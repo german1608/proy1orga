@@ -313,6 +313,7 @@ free_end:							#epilog
 #	$s0: Tendra el nodo de la lista que hace referencia a $a0
 #	$s1: Tendra el nodo anterior a $s0.
 #	$s2: Tendra el tamano anterior.
+#	$t0,$t1,$t2: son usados para iterar y carga de data. Son muy temporales.
 reallococ:
 	# Convenciones del llamado
 	sw	$fp, ($sp)
