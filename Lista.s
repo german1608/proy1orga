@@ -134,7 +134,7 @@ delete:
 	lw  	$t0, sizeInit
 	bnez 	$t0, delete_ok
 delete_err:
-	li 	$v0, -1
+	li 	$v0, -8
 	b 	delete_end
 
 delete_ok:	
