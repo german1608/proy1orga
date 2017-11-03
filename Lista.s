@@ -130,7 +130,14 @@ delete:
 	sw	$ra, -4($sp)
 	sub	$sp, $sp, 8 		# prolog
 	move	$fp, $sp
+	
+	lw  	$t0, sizeInit
+	bnez 	$t0, delete_ok
+delete_err:
+	li 	$v0, -1
+	b 	delete_end
 
+delete_ok:	
 	li	$t0, 1
 	lw	$t1, 8($a0)  		# $t1 = cabezaLista.size
 	lw	$t5, 8($a0)		#$t5 = cabezaLista.size
